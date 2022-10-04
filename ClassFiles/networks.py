@@ -41,13 +41,14 @@ class ConvNetClassifier(nn.Module):
         self.colors = colors
         self.conv1 = nn.Conv2d(3,16,5,padding="same")
         self.conv2 = nn.Conv2d(16,32,5,padding="same")
-        self.conv3 = nn.Conv2d(32,32,5,padding="same")
+        self.conv3 = Conv2dSame(32,32,5, stride = 2)
         self.conv4 = Conv2dSame(32,64,5, stride=2)
         self.conv5 = Conv2dSame(64,64,5, stride=2)
         self.conv6 = Conv2dSame(64,128,5, stride=2)
-        
+        #image size is now imagesize/16
+
         # reshape for classification - assumes image size is multiple of 32
-        finishing_size = int(self.size[0] * self.size[1]/(16*16))
+        finishing_size = int(self.size[-2] * self.size[-1]/(16*16))
         self.dimensionality = finishing_size * 128
         #reshaped = tf.reshape(self.conv6, [-1, dimensionality])
         
@@ -70,7 +71,7 @@ class ConvNetClassifier(nn.Module):
         x = nn.LeakyReLU()(x)
         x = self.conv6(x)
         x = nn.LeakyReLU()(x)
-        x = torch.reshape(x, (-1,self.dimensionality))    
+        x = torch.flatten(x, start_dim=1)    
         x = self.fc1(x)
         x = nn.LeakyReLU()(x)
         output = self.fc2(x)

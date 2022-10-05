@@ -1,7 +1,7 @@
-import nntplib
+#import nntplib
 import numpy as np
 import os
-import odl
+#import odl
 from abc import ABC, abstractmethod
 from ClassFiles import util as ut
 #import tensorflow as tf
@@ -244,7 +244,10 @@ class AdversarialRegulariser(GenericFramework):
 
         # Wasserstein loss
         wasserstein_loss = torch.mean(data_was-gen_was)
-        
+        print('Data Wass.:')
+        print(torch.mean(data_was).item())
+        # print('Gen Wass.:')
+        # print(torch.mean(gen_was))
         # intermediate point
         random_uint_exp = torch.unsqueeze(torch.unsqueeze(
             torch.unsqueeze(random_uint, axis=1), axis=1), axis=1)
@@ -254,7 +257,7 @@ class AdversarialRegulariser(GenericFramework):
 
         # calculate derivative at intermediate point
         gradient_was = torch.autograd.grad(
-            inter_was, inter, grad_outputs=torch.ones_like(inter_was))[0]
+            inter_was, inter, grad_outputs=torch.ones_like(inter_was), create_graph= True, retain_graph= True)[0]
         
         # take the L2 norm of that derivative
         norm_gradient = torch.sqrt(torch.sum(
@@ -285,6 +288,10 @@ class AdversarialRegulariser(GenericFramework):
             # optimize network
             loss, wasserstein_loss, regulariser_was = self.train_step(gen_im=guess, true_im=x_true, random_uint=epsilon)
             loss.backward()
+            print('Netzwerk:')
+            print(loss.item())
+            print('Wasserstein:')
+            print(wasserstein_loss)
             self.optimizer.step()
             del loss, wasserstein_loss, regulariser_was
             #torch.cuda.empty_cache()

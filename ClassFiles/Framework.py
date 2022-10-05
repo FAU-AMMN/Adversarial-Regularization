@@ -1,7 +1,7 @@
-#import nntplib
+import nntplib
 import numpy as np
 import os
-#import odl
+import odl
 from abc import ABC, abstractmethod
 from ClassFiles import util as ut
 #import tensorflow as tf
@@ -223,11 +223,11 @@ class AdversarialRegulariser(GenericFramework):
 
             data_error, was_output, cut_reco, quality = self.calculate_pic_grad(reconstruction=guess, data_term=y, mu=mu, ground_truth=x_true)
             
-            writer.add_scalar('Data_Loss', data_error.detach().cpu().numpy(), k)
-            writer.add_scalar('Wasserstein_Loss', was_output.detach().cpu().numpy(), k)
-            writer.add_scalar('L2_to_ground_truth', quality.detach().cpu().numpy(), k)
-            writer.add_image('Reconstruction', cut_reco.detach().cpu().numpy()[0])
-            writer.add_image('Ground_truth', x_true[0])
+            writer.add_scalar('Picture_Optimization/Data_Loss', data_error.detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/Wasserstein_Loss', was_output.detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/L2_to_ground_truth', quality.detach().cpu().numpy(), k)
+            writer.add_image('Picture_Optimization/Reconstruction', cut_reco.detach().cpu().numpy()[0])
+            writer.add_image('Picture_Optimization/Ground_truth', x_true[0])
             guess = self.update_pic(1, step_s, y, guess, mu)
             del data_error, was_output, cut_reco, quality
             #torch.cuda.empty_cache()
@@ -237,17 +237,14 @@ class AdversarialRegulariser(GenericFramework):
 
         # the network outputs
         gen_im = torch.tensor(gen_im, requires_grad=True, device=self.device)
-        true_im = torch.tensor(true_im, requires_grad=True, device=self.device)
+        true_im = torch.tensor(true_im, requires_grad=False, device=self.device)
         random_uint = torch.tensor(random_uint, device=self.device)
         gen_was = self.network(gen_im)
         data_was = self.network(true_im)
 
         # Wasserstein loss
         wasserstein_loss = torch.mean(data_was-gen_was)
-        print('Data Wass.:')
-        print(torch.mean(data_was).item())
-        # print('Gen Wass.:')
-        # print(torch.mean(gen_was))
+        
         # intermediate point
         random_uint_exp = torch.unsqueeze(torch.unsqueeze(
             torch.unsqueeze(random_uint, axis=1), axis=1), axis=1)
@@ -257,7 +254,7 @@ class AdversarialRegulariser(GenericFramework):
 
         # calculate derivative at intermediate point
         gradient_was = torch.autograd.grad(
-            inter_was, inter, grad_outputs=torch.ones_like(inter_was), create_graph= True, retain_graph= True)[0]
+            inter_was, inter, grad_outputs=torch.ones_like(inter_was), create_graph=True, retain_graph=True)[0]
         
         # take the L2 norm of that derivative
         norm_gradient = torch.sqrt(torch.sum(
@@ -288,10 +285,6 @@ class AdversarialRegulariser(GenericFramework):
             # optimize network
             loss, wasserstein_loss, regulariser_was = self.train_step(gen_im=guess, true_im=x_true, random_uint=epsilon)
             loss.backward()
-            print('Netzwerk:')
-            print(loss.item())
-            print('Wasserstein:')
-            print(wasserstein_loss)
             self.optimizer.step()
             del loss, wasserstein_loss, regulariser_was
             #torch.cuda.empty_cache()
@@ -322,10 +315,11 @@ class AdversarialRegulariser(GenericFramework):
             # get the batch size - all gradients have to be scaled by the batch size as they are taken over previously
             # averaged quantities already. Makes gradients scaling batch size inveriant
             batch_s = reconstruction.size()[0]
+            full_error = full_error * batch_s
 
             # Optimization for the picture
             pic_grad = torch.autograd.grad(
-                full_error * batch_s, reconstruction)
+                full_error, reconstruction)
             pic_grad_cpu = pic_grad[0].detach().cpu().numpy()
             del reconstruction, data_term, data_mismatch, data_error, full_error, pic_grad, mu, ray, batch_s
             #torch.cuda.empty_cache()

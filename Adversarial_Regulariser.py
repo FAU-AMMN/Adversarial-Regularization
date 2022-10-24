@@ -5,12 +5,12 @@ from ClassFiles.forward_models import Denoising
 
 
 DATA_PATH = '/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/data/BSR/BSDS500/data/images/'
-SAVES_PATH = '/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/'
+SAVES_PATH = '/media/sriranjani/Data/masterThesis/git/Adversarial-Regularization/'
 
 
 class Experiment1(AdversarialRegulariser):
     experiment_name = 'MediumNoise'
-    noise_level = 0.01
+    noise_level = 0.1
 
     # relation between L2 error and regulariser
     # 0 corresponds to pure L2 loss, infty to pure adversarial loss
@@ -43,3 +43,5 @@ experiment.Reconstruction_Quality_writer.close()
 experiment.log_optimization(32, 200, 0.7, .3)
 experiment.log_optimization(32, 200, 0.7, .4)
 experiment.log_optimization(32, 200, 0.7, .5)
+experiment.log_optimization(32, 200, 0.1, .5)
+experiment.log_optimization(32, 200, 0.3, .5)

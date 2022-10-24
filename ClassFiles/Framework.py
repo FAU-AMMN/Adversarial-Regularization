@@ -4,7 +4,6 @@ import os
 import odl
 from abc import ABC, abstractmethod
 from ClassFiles import util as ut
-#import tensorflow as tf
 import torch
 import torch.nn as nn
 from torch.utils.tensorboard.writer import SummaryWriter
@@ -68,9 +67,12 @@ class GenericFramework(ABC):
             data = self.model.forward_operator(image)
 
             # add white Gaussian noise
+            """noisy_data = data + self.noise_level*np.random.normal(size=(self.measurement_space[0],
+                                                                        self.measurement_space[1],
+                                                                        self.colors))"""
             noisy_data = data + self.noise_level*np.random.normal(size=(self.measurement_space[0],
                                                                         self.measurement_space[1],
-                                                                        self.colors))
+                                                                        3))                                                                        
             fbp[i, ...] = np.transpose(self.model.inverse(noisy_data), axes=[2,0,1])
             x_true[i, ...] = np.transpose(image, axes=[2,0,1])
             y[i, ...] = np.transpose(noisy_data, axes=[2,0,1])
@@ -160,17 +162,29 @@ class AdversarialRegulariser(GenericFramework):
                 guess = guess_update
         
         data_error, was_output, cut_reco, quality = self.calculate_pic_grad(reconstruction=guess, data_term=y, mu=self.mu_default, ground_truth=x_true)
-        
         check = self.optimizer.state[self.optimizer.param_groups[0]["params"][-1]]
         if len(check.keys()) == 0:
             step = 0
         else:
             step = self.optimizer.state[self.optimizer.param_groups[0]["params"][-1]]["step"]
         
+        ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
+        noisy_image = torch.tensor(y, requires_grad=False, device=self.device)
+        quality_noisy = ut.quality(ground_truth, noisy_image)
+
         self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Data_Loss', data_error.detach().cpu().numpy(), step)
         self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Wasserstein_Loss', was_output.detach().cpu().numpy(), step)
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/L2_to_ground_truth', quality.detach().cpu().numpy(), step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/L2_recon_to_ground_truth', quality[0].detach().cpu().numpy(), step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/PSNR_recon_to_ground_truth', quality[1].detach().cpu().numpy(), step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/SSI_recon_to_ground_truth', quality[2].detach().cpu().numpy(), step)
+
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/L2_ground_truth_to_noisy', quality_noisy[0].detach().cpu().numpy(), step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/PSNR_ground_truth_to_noisy', quality_noisy[1].detach().cpu().numpy(), step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/SSI_ground_truth_to_noisy', quality_noisy[2].detach().cpu().numpy(), step)
+
+
         self.Reconstruction_Quality_writer.add_image('Reconstruction_Quality/Reconstruction', cut_reco.detach().cpu().numpy()[0])
+        self.Reconstruction_Quality_writer.add_image('Reconstruction_Quality/Noisy_Image', y[0])
         self.Reconstruction_Quality_writer.add_image('Reconstruction_Quality/Ground_truth', x_true[0])
         del data_error, was_output, cut_reco, quality
         #torch.cuda.empty_cache()
@@ -223,10 +237,23 @@ class AdversarialRegulariser(GenericFramework):
 
             data_error, was_output, cut_reco, quality = self.calculate_pic_grad(reconstruction=guess, data_term=y, mu=mu, ground_truth=x_true)
             
+            ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
+            noisy_image = torch.tensor(y, requires_grad=False, device=self.device)
+            quality_noisy = ut.quality(ground_truth, noisy_image)
+
+            
             writer.add_scalar('Picture_Optimization/Data_Loss', data_error.detach().cpu().numpy(), k)
             writer.add_scalar('Picture_Optimization/Wasserstein_Loss', was_output.detach().cpu().numpy(), k)
-            writer.add_scalar('Picture_Optimization/L2_to_ground_truth', quality.detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/L2_recon_to_ground_truth', quality[0].detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/PSNR_recon_to_ground_truth', quality[1].detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/SSI_recon_to_ground_truth', quality[2].detach().cpu().numpy(), k)
+
+            writer.add_scalar('Picture_Optimization/L2_noisy_to_ground_truth', quality_noisy[0].detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/PSNR_noisy_to_ground_truth', quality_noisy[1].detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/SSI_noisy_to_ground_truth', quality_noisy[2].detach().cpu().numpy(), k)
+            
             writer.add_image('Picture_Optimization/Reconstruction', cut_reco.detach().cpu().numpy()[0])
+            writer.add_image('Picture_Optimization/Noisy_Image', y[0])
             writer.add_image('Picture_Optimization/Ground_truth', x_true[0])
             guess = self.update_pic(1, step_s, y, guess, mu)
             del data_error, was_output, cut_reco, quality
@@ -328,8 +355,8 @@ class AdversarialRegulariser(GenericFramework):
         else:
             cut_reco = torch.clamp(reconstruction, 0.0, 1.0)
             ground_truth = torch.tensor(ground_truth, requires_grad=False, device=self.device)
-            quality = torch.mean(torch.sqrt(torch.sum(torch.square(ground_truth - reconstruction),
-                                                            axis=(1, 2, 3))))
+            quality = ut.quality(ground_truth, reconstruction)
+            #quality = torch.mean(torch.sqrt(torch.sum(torch.square(ground_truth - reconstruction),axis=(1, 2, 3))))
             return data_error, was_output, cut_reco, quality
         
 

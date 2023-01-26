@@ -132,7 +132,7 @@ class AdversarialRegulariser(GenericFramework):
 
     # sets up the network architecture
     def __init__(self, data_path, saves_path, exp_name=None, train_model=True):
-        # call superclass init
+        # call superclass init 
         super(AdversarialRegulariser, self).__init__(data_path, saves_path, exp_name)
         self.total_steps = self.total_steps_default
         self.optimizer = torch.optim.RMSprop(self.network.parameters(), lr=self.learning_rate)

@@ -1,7 +1,6 @@
 import random
 import numpy as np
-import scipy.ndimage
-import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 from ClassFiles import util as ut
 
@@ -42,10 +41,10 @@ class BSDS(data_pip):
     def single_image(self, training_data=True):
         if training_data:
             rand = random.randint(0, self.train_amount - 1)
-            pic = mpimg.imread(self.train_list[rand])
+            pic = plt.imread(self.train_list[rand])
         else:
             rand = random.randint(0, self.eval_amount - 1)
-            pic = scipy.ndimage.imread(self.eval_list[rand])
+            pic = plt.imread(self.eval_list[rand])
         return pic/255.0
 
     # Draw random edgepoint

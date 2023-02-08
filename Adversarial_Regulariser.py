@@ -4,8 +4,8 @@ from ClassFiles.data_pips import BSDS
 from ClassFiles.forward_models import Denoising
 
 
-DATA_PATH = '/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser/data/BSR/BSDS500/data/images/'
-SAVES_PATH = '/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/'
+DATA_PATH = '/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser/data/BSR/BSDS500/data/images/' #'../Data/data/images/'
+SAVES_PATH = '/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/' #'../Saves/'
 
 
 class Experiment1(AdversarialRegulariser):

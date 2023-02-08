@@ -2,8 +2,11 @@ import random
 import numpy as np
 import scipy.ndimage
 import matplotlib.image as mpimg
+from matplotlib.pyplot import imread
 from abc import ABC, abstractmethod
 from ClassFiles import util as ut
+import pydicom as dc
+from skimage.transform import resize
 
 # Abstract class for data preprocessing. To customize to your own dataset, define subclass with the
 # image_size, name and color of your dataset and the corresponding load_data method
@@ -47,7 +50,8 @@ class BSDS(data_pip):
         else:
             #rand = random.randint(0, self.eval_amount - 1)
             #pic = scipy.ndimage.imread(self.eval_list[rand])
-            pic = scipy.ndimage.imread(self.eval_list[self.eval_counter])
+            #pic = scipy.ndimage.imread(self.eval_list[self.eval_counter])
+            pic = imread(self.eval_list[self.eval_counter])
             #print(f'image {self.eval_counter},  {self.eval_list[self.eval_counter]}')
             self.eval_counter +=1
         return pic/255.0
@@ -67,7 +71,60 @@ class BSDS(data_pip):
     # methode to cut a image_size area out of the training images
     def load_data(self, training_data= True):
         pic = self.single_image(training_data=training_data)
-        size = pic.shape
-        ul, lr = self.edgepoint(size[0], size[1])
-        image = pic[ul[0]:lr[0], ul[1]:lr[1],:]
-        return image
+        pic = ut.normalize_image(pic)
+        pic = resize(pic, [128, 128])
+        pic = ut.scale_to_unit_intervall(pic)
+        #size = pic.shape
+        #ul, lr = self.edgepoint(size[0], size[1])
+        #image = pic[ul[0]:lr[0], ul[1]:lr[1],:]
+        return pic
+
+class LUNA(data_pip):
+    name = 'LUNA'
+    colors = 1
+
+    def __init__(self,path):
+        super(LUNA, self).__init__(path)
+        Train_Path = self.data_path+'Training_Data'
+        Eval_Path = self.data_path+'Evaluation_Data'
+        # List the existing training data
+        self.training_list = ut.find('*.dcm', Train_Path)
+        self.training_list_length = len(self.training_list)
+        print('Training Data found: ' + str(self.training_list_length))
+        self.eval_list = ut.find('*.dcm', Eval_Path)
+        self.eval_list_length = len(self.eval_list)
+        print('Evaluation Data found: ' + str(self.eval_list_length))
+
+    # methodes for obtaining the medical data
+    def get_random_path(self, training_data= True):
+        if training_data:
+            path = self.training_list[random.randint(0, self.training_list_length-1)]
+        else:
+            path = self.eval_list[random.randint(0, self.eval_list_length - 1)]
+        return path
+
+    # resizes image to format 128x128
+    def reshape_pic(self, pic):
+        pic = ut.normalize_image(pic)
+        pic = resize(pic, [128, 128])
+        pic = ut.scale_to_unit_intervall(pic)
+        return pic
+
+    # the data method
+    def load_data(self, training_data= True):
+        k = -10000
+        pic = np.zeros((128,128))
+        while k < 0:
+            try:
+                path = self.get_random_path(training_data=training_data)
+                dc_file = dc.read_file(path, force=True)
+                pic = dc_file.pixel_array
+                if pic.shape == (512,512):
+                    pic = self.reshape_pic(pic)
+                    k = 1
+            except :
+                k = - 10000
+                print('Luna dataset error caught')
+        output = np.zeros((128,128,1))
+        output[...,0] = pic
+        return output

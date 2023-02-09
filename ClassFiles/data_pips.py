@@ -36,23 +36,29 @@ class BSDS(data_pip):
         self.eval_list = ut.find('*.jpg', self.data_path+'Evaluation_Data')
         self.eval_amount = len(self.eval_list)
         print('Evaluation Pictures found: ' + str(self.eval_amount))
-
+        self.eval_counter = 0
     # method to draw raw picture samples
     def single_image(self, training_data=True):
         if training_data:
+            self.eval_counter = 0
             rand = random.randint(0, self.train_amount - 1)
             pic = plt.imread(self.train_list[rand])
         else:
-            rand = random.randint(0, self.eval_amount - 1)
-            pic = plt.imread(self.eval_list[rand])
+            #rand = random.randint(0, self.eval_amount - 1)
+            #pic = scipy.ndimage.imread(self.eval_list[rand])
+            pic = plt.imread(self.eval_list[self.eval_counter])
+            #print(f'image {self.eval_counter},  {self.eval_list[self.eval_counter]}')
+            self.eval_counter +=1
         return pic/255.0
 
     # Draw random edgepoint
     def edgepoint(self, x_size, y_size):
         x_vary = x_size - self.image_size[0]
-        x_coor = random.randint(0, x_vary)
+        #x_coor = random.randint(0, x_vary)
+        x_coor = x_vary
         y_vary = y_size - self.image_size[1]
-        y_coor = random.randint(0, y_vary)
+        #y_coor = random.randint(0, y_vary)
+        y_coor = y_vary
         upper_left = [x_coor, y_coor]
         lower_right = [x_coor + self.image_size[0], y_coor + self.image_size[1]]
         return upper_left, lower_right

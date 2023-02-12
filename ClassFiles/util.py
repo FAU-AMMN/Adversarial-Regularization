@@ -3,7 +3,7 @@ import os
 import torch 
 import numpy as np
 import fnmatch
-from skimage.metrics import structural_similarity as ssim_np
+#from skimage.metrics import structural_similarity as ssim_np
 from torchmetrics import StructuralSimilarityIndexMeasure
 
 def quality(truth, recon):

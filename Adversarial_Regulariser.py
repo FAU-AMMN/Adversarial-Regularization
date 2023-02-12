@@ -5,9 +5,9 @@ from ClassFiles.forward_models import Denoising
 import numpy as np
 import time 
 
-DATA_PATH = "/home/maniraman/Desktop/Ranjani/thesis/BSR/BSDS500/data/images/"
-#DATA_PATH = '/home/maniraman/Desktop/Ranjani/thesis/LUNA/manifest-1674842977695/LIDC-IDRI/'
-SAVES_PATH = '/home/maniraman/Desktop/Ranjani/thesis/git/Adversarial-Regularization/'
+DATA_PATH = "/home/maniraman/Desktop/Ranjani/thesis/BSR/BSDS500/data/images/" #'/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/data/BSR/BSDS500/data/images/', '../Data/data/images/'
+#DATA_PATH = '/home/maniraman/Desktop/Ranjani/thesis/LUNA/manifest-1674842977695/LIDC-IDRI/', '../Data/luna/'
+SAVES_PATH = '/home/maniraman/Desktop/Ranjani/thesis/git/Adversarial-Regularization/' #'/media/sriranjani/Data/masterThesis/git/Adversarial-Regularization/' #'../Saves/'
 
 #Saves_clipped_Noise0.01
 class Experiment1(AdversarialRegulariser):

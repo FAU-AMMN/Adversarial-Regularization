@@ -1,8 +1,7 @@
 import random
 import numpy as np
-import scipy.ndimage
 import matplotlib.image as mpimg
-from matplotlib.pyplot import imread
+import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 from ClassFiles import util as ut
 import pydicom as dc
@@ -46,12 +45,11 @@ class BSDS(data_pip):
         if training_data:
             self.eval_counter = 0
             rand = random.randint(0, self.train_amount - 1)
-            pic = mpimg.imread(self.train_list[rand])
+            pic = plt.imread(self.train_list[rand])
         else:
             #rand = random.randint(0, self.eval_amount - 1)
             #pic = scipy.ndimage.imread(self.eval_list[rand])
-            #pic = scipy.ndimage.imread(self.eval_list[self.eval_counter])
-            pic = imread(self.eval_list[self.eval_counter])
+            pic = plt.imread(self.eval_list[self.eval_counter])
             #print(f'image {self.eval_counter},  {self.eval_list[self.eval_counter]}')
             self.eval_counter +=1
         return pic/255.0

@@ -69,6 +69,9 @@ class ConvNetClassifier(nn.Module):
         self.conv8 = Conv2dSame(64,64,5, stride=2)
         self.conv9 = Conv2dSame(64,128,5, stride=2)
         #self.conv10 = nn.Conv2d(128,128,3, padding="same")
+        
+        # TODO: add adaptive average pooling layer to get shape batchsize x 128 x 8 x 8
+        #image size is now imagesize/16
 
         # reshape for classification - assumes image size is multiple of 32
         finishing_size = int(self.size[0] * self.size[1]/(16*16))

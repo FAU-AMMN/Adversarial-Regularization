@@ -1,6 +1,8 @@
 import numpy as np
 from abc import ABC, abstractmethod
 import odl
+from odl.contrib import torch as odl_torch
+from skimage.transform import radon,iradon
 
 class ForwardModel(ABC):
     # Defining the forward operators used. For customization, create a subclass of forward_model, implementing
@@ -76,6 +78,59 @@ class Denoising(ForwardModel):
 
     def tensor_operator(self, tensor):
         return tensor
+
+    def get_odl_operator(self):
+        return self.operator
+
+class CT(ForwardModel):
+    # a model for computed tomography on image of size 64x64. Allows for one color channel only.
+
+    name = 'Computed_Tomography'
+    def __init__(self, size, num_angles=30):
+        super(CT, self).__init__(size)
+        self.space = odl.uniform_discr([-64, -64], [64, 64], [self.size[0], self.size[1]],
+                                       dtype='float32')
+
+        geometry = odl.tomo.parallel_beam_geometry(self.space, num_angles=num_angles)
+        op = odl.tomo.RayTransform(self.space, geometry)
+
+        # Ensure operator has fixed operator norm for scale invariance
+        opnorm = odl.power_method_opnorm(op)
+        self.operator = (1 / opnorm) * op
+        self.fbp = opnorm * odl.tomo.fbp_op(op)
+        self.adjoint_operator = (1 / opnorm)*op.adjoint
+
+        # Create tensorflow layer from odl operator
+        self.ray_transform = odl_torch.OperatorModule(self.operator)
+
+    def get_image_size(self):
+        return self.space.shape
+
+    def get_measurement_size(self):
+        return self.operator.range.shape
+
+    def forward_operator(self, image):
+        assert len(image.shape) == 3
+        assert image.shape[-1] == 1
+        ip = self.space.element(image[..., 0])
+        result = np.expand_dims(self.operator(ip), axis=-1)
+        return result
+
+    def forward_operator_adjoint(self, measurement):
+        assert len(measurement.shape) == 3
+        assert measurement.shape[-1] == 1
+        ip = self.operator.range.element(measurement[..., 0])
+        result = np.expand_dims(self.adjoint_operator(ip), axis=-1)
+        return result
+
+    def inverse(self, measurement):
+        assert len(measurement.shape) == 3
+        assert measurement.shape[-1] == 1
+        m = self.operator.range.element(measurement[..., 0])
+        return np.expand_dims(self.fbp(m), axis=-1)
+
+    def tensor_operator(self, tensor):
+        return self.ray_transform(tensor)
 
     def get_odl_operator(self):
         return self.operator

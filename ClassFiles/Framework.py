@@ -177,7 +177,7 @@ class AdversarialRegulariser(GenericFramework):
             step = self.optimizer.state[self.optimizer.param_groups[0]["params"][-1]]["step"]
         
         ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
-        noisy_image = torch.tensor(y, requires_grad=False, device=self.device)
+        noisy_image = torch.tensor(fbp, requires_grad=False, device=self.device)
         quality_noisy = ut.quality(ground_truth, noisy_image)
 
         self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Data_Loss', data_error.detach().cpu().numpy(), step)
@@ -238,7 +238,7 @@ class AdversarialRegulariser(GenericFramework):
             batch_size, training_data=False)
         
         ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
-        noisy_image = torch.tensor(y, requires_grad=False, device=self.device)
+        noisy_image = torch.tensor(fbp, requires_grad=False, device=self.device)
         quality_noisy = ut.quality(ground_truth, noisy_image)
         
         print(f"l2: {quality_noisy[0].detach().cpu().numpy()} PSNR: {quality_noisy[1].detach().cpu().numpy()} SSI: {quality_noisy[2].detach().cpu().numpy()}")

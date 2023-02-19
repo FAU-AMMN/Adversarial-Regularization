@@ -60,18 +60,15 @@ class ConvNetClassifier(nn.Module):
         self.conv1 = nn.Conv2d(self.colors,16,5,padding="same")
         #self.conv2 = nn.Conv2d(16,16,3, padding="same")
         self.conv3 = nn.Conv2d(16,32,5,padding="same")
-        self.resblock1 = resblock(32,32)
-        self.conv4 = Conv2dSame(32,32,5,stride=2) ## TODO substitute stride by resizing to half size
+        self.conv4 = Conv2dSame(32,32,5,stride=2)
+
         #self.conv5 = nn.Conv2d(32,32,3,padding="same")
         self.conv6 = Conv2dSame(32,64,5, stride=2)
         #self.conv7 = nn.Conv2d(64,64,3, padding="same")
-        self.resblock2 = resblock(64,64)
         self.conv8 = Conv2dSame(64,64,5, stride=2)
         self.conv9 = Conv2dSame(64,128,5, stride=2)
         #self.conv10 = nn.Conv2d(128,128,3, padding="same")
-        
-        # TODO: add adaptive average pooling layer to get shape batchsize x 128 x 8 x 8
-        #image size is now imagesize/16
+        self.adapAvgPool = nn.AdaptiveAvgPool2d((8,8))
 
         # reshape for classification - assumes image size is multiple of 32
         finishing_size = int(self.size[0] * self.size[1]/(16*16))
@@ -103,14 +100,12 @@ class ConvNetClassifier(nn.Module):
         #x = nn.LeakyReLU(negative_slope=0.2)(x)
         x = self.conv3(x)
         x = nn.LeakyReLU(negative_slope=0.2)(x)
-        x = self.resblock1(x)
         x = self.conv4(x)
         x = nn.LeakyReLU(negative_slope=0.2)(x)
         #x = self.conv5(x)
         #x = nn.LeakyReLU(negative_slope=0.2)(x)
         x = self.conv6(x)
         x = nn.LeakyReLU(negative_slope=0.2)(x)
-        x = self.resblock2(x)
         #x = self.conv7(x)
         #x = nn.LeakyReLU(negative_slope=0.2)(x)
         x = self.conv8(x)
@@ -119,6 +114,7 @@ class ConvNetClassifier(nn.Module):
         x = nn.LeakyReLU(negative_slope=0.2)(x)
         #x = self.conv10(x)
         #x = nn.LeakyReLU(negative_slope=0.2)(x)
+        x = self.adapAvgPool(x)
         x = torch.reshape(x, (-1,self.dimensionality))    
         x = self.fc1(x)
         x = nn.LeakyReLU(negative_slope=0.3)(x)

@@ -5,8 +5,10 @@ from ClassFiles.forward_models import Denoising,CT
 import numpy as np
 import time 
 
-DATA_PATH =  '../Data/data/images/'
-SAVES_PATH = '../Saves/'
+DATA_PATH = "/home/maniraman/Desktop/Ranjani/thesis/BSR/BSDS500/data/images/" #'/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/data/BSR/BSDS500/data/images/', '../Data/data/images/'
+#DATA_PATH = '/home/maniraman/Desktop/Ranjani/thesis/LUNA/manifest-1674842977695/LIDC-IDRI/' #'../Data/luna/'
+SAVES_PATH = '/home/maniraman/Desktop/Ranjani/thesis/git/Adversarial-Regularization/' #'/media/sriranjani/Data/masterThesis/git/Adversarial-Regularization/' #'../Saves/'
+
 
 #Saves_clipped_Noise0.01
 class Experiment1(AdversarialRegulariser):
@@ -39,18 +41,22 @@ class Experiment1(AdversarialRegulariser):
 
 tm = time.time()
 
-experiment = Experiment1(DATA_PATH, SAVES_PATH, "ellipses_noise001")
-experiment.noise_level = 0.001
+experiment = Experiment1(DATA_PATH, SAVES_PATH, "Noise0.05_goodlmb_adapPool")
+experiment.noise_level = 0.05
+
 experiment.data_clipping = 'Clipped_data'
 lmb = experiment.find_good_lambda(32)
 experiment.mu_default = lmb
-for k in range(7):
+"""for k in range(7):
     experiment.train(100)
 experiment.Network_Optimization_writer.close()
-experiment.Reconstruction_Quality_writer.close()
-experiment.log_optimization(batch_size=32, steps=200, step_s=0.7,mu=lmb)
+experiment.Reconstruction_Quality_writer.close()"""
+"""experiment.log_optimization(batch_size=32, steps=200, step_s=0.7,mu=lmb)
+experiment.log_optimization(batch_size=32, steps=200, step_s=0.7,mu=0.4)
+"""
+experiment.log_optimization(batch_size=1, steps=200, step_s=0.7,mu=lmb)
+experiment.log_optimization(batch_size=1, steps=200, step_s=0.7,mu=0.4)
+
 
 duration = (time.time()-tm)/60
 print("Time taken for experiment " + str(duration))
-
-

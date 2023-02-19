@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from ClassFiles import util as ut
 import pydicom as dc
 from skimage.transform import resize
+import odl
 
 # Abstract class for data preprocessing. To customize to your own dataset, define subclass with the
 # image_size, name and color of your dataset and the corresponding load_data method
@@ -127,4 +128,40 @@ class LUNA(data_pip):
                 print('Luna dataset error caught')
         output = np.zeros((128,128,1))
         output[...,0] = pic
+        return output
+
+# returns 128x128 image of randomly sampled ellipses
+class ellipses(data_pip):
+    name = 'ellipses'
+    colors = 1
+
+    def __init__(self, path):
+        super(ellipses, self).__init__(path)
+        self.space = odl.uniform_discr([-64, -64], [64, 64], [self.image_size[0], self.image_size[1]],
+                                  dtype='float32')
+
+    # generates one random ellipse
+    def random_ellipse(self, interior=False):
+        if interior:
+            x_0 = np.random.rand() - 0.5
+            y_0 = np.random.rand() - 0.5
+        else:
+            x_0 = 2 * np.random.rand() - 1.0
+            y_0 = 2 * np.random.rand() - 1.0
+
+        return ((np.random.rand() - 0.5) * np.random.exponential(0.4),
+                np.random.exponential() * 0.2, np.random.exponential() * 0.2,
+                x_0, y_0,
+                np.random.rand() * 2 * np.pi)
+
+    # generates odl space object with ellipses
+    def random_phantom(self, spc, n_ellipse=50, interior=False):
+        n = np.random.poisson(n_ellipse)
+        ellipses = [self.random_ellipse(interior=interior) for _ in range(n)]
+        return odl.phantom.ellipsoid_phantom(spc, ellipses)
+
+    def load_data(self, training_data= True):
+        pic = self.random_phantom(spc= self.space)
+        output = np.zeros((128, 128, 1))
+        output[..., 0] = ut.scale_to_unit_intervall(pic)
         return output

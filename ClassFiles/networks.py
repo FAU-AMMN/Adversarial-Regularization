@@ -61,6 +61,7 @@ class ConvNetClassifier(nn.Module):
         #self.conv2 = nn.Conv2d(16,16,3, padding="same")
         self.conv3 = nn.Conv2d(16,32,5,padding="same")
         self.conv4 = Conv2dSame(32,32,5,stride=2)
+
         #self.conv5 = nn.Conv2d(32,32,3,padding="same")
         self.conv6 = Conv2dSame(32,64,5, stride=2)
         #self.conv7 = nn.Conv2d(64,64,3, padding="same")
@@ -122,4 +123,4 @@ class ConvNetClassifier(nn.Module):
 
         output = self.fc3(x)
 
-        return output        
+        return output  # TODO: check shape should be batchsize x 1      

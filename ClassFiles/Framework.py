@@ -50,7 +50,7 @@ class GenericFramework(ABC):
         ut.create_single_folder(self.path+'Data')
         ut.create_single_folder(self.path + 'Logs')
 
-    def generate_training_data(self, batch_size, training_data=True):
+    def generate_training_data(self, batch_size, training_data=True, logOpti=False):
         # method to generate training data given the current model type
         y = np.empty(
             (batch_size,  self.colors, self.measurement_space[0], self.measurement_space[1]), dtype='float32')
@@ -67,10 +67,17 @@ class GenericFramework(ABC):
                                                self.measurement_space[1],
                                                self.colors))
             else:
-                image = self.data_pip.load_data(training_data=False)
-                np.random.seed(self.seed) ; noise = np.random.normal(size=(self.measurement_space[0],
-                                                self.measurement_space[1],
-                                                self.colors))
+                if logOpti == False:
+                    image = self.data_pip.load_data(training_data=False, logOpti=False)
+                    np.random.seed(self.seed) ; noise = np.random.normal(size=(self.measurement_space[0],
+                                                    self.measurement_space[1],
+                                                    self.colors))
+                else:
+                    image = self.data_pip.load_data(training_data=False, logOpti=True)
+                    y = np.empty((batch_size,  self.colors, image.shape[0], image.shape[1]), dtype='float32')
+                    x_true = np.empty((batch_size,  self.colors, image.shape[0], image.shape[1]), dtype='float32')
+                    fbp = np.empty((batch_size, self.colors, image.shape[0], image.shape[1]), dtype='float32')
+                    np.random.seed(self.seed) ; noise = np.random.normal(size=(image.shape[0], image.shape[1],self.colors))
             data = self.model.forward_operator(image)
 
             # add white Gaussian noise
@@ -235,7 +242,7 @@ class AdversarialRegulariser(GenericFramework):
         if starting_point is None:
             starting_point = self.starting_point
         y, x_true, fbp = self.generate_training_data(
-            batch_size, training_data=False)
+            batch_size, training_data=False, logOpti=True)
         
         ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
         noisy_image = torch.tensor(y, requires_grad=False, device=self.device)

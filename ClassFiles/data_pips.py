@@ -67,10 +67,11 @@ class BSDS(data_pip):
         return upper_left, lower_right
 
     # methode to cut a image_size area out of the training images
-    def load_data(self, training_data= True):
+    def load_data(self, training_data= True, logOpti = False):
         pic = self.single_image(training_data=training_data)
         pic = ut.normalize_image(pic)
-        pic = resize(pic, [128, 128])
+        if logOpti == False:
+            pic = resize(pic, [128, 128])
         pic = ut.scale_to_unit_intervall(pic)
         #size = pic.shape
         #ul, lr = self.edgepoint(size[0], size[1])
@@ -109,7 +110,7 @@ class LUNA(data_pip):
         return pic
 
     # the data method
-    def load_data(self, training_data= True):
+    def load_data(self, training_data= True,logOpti = False):
         k = -10000
         pic = np.zeros((128,128))
         while k < 0:
@@ -117,9 +118,10 @@ class LUNA(data_pip):
                 path = self.get_random_path(training_data=training_data)
                 dc_file = dc.read_file(path, force=True)
                 pic = dc_file.pixel_array
-                if pic.shape == (512,512):
-                    pic = self.reshape_pic(pic)
-                    k = 1
+                if logOpti == False:
+                    if pic.shape == (512,512):
+                        pic = self.reshape_pic(pic)
+                        k = 1
             except :
                 k = - 10000
                 print('Luna dataset error caught')

@@ -160,8 +160,8 @@ class ellipses(data_pip):
         ellipses = [self.random_ellipse(interior=interior) for _ in range(n)]
         return odl.phantom.ellipsoid_phantom(spc, ellipses)
 
-    def load_data(self, training_data= True):
+    def load_data(self, training_data= True, logOpti = False):
         pic = self.random_phantom(spc= self.space)
-        output = np.zeros((128, 128, 1))
+        output = np.zeros((self.image_size[0], self.image_size[1], 1))
         output[..., 0] = ut.scale_to_unit_intervall(pic)
         return output

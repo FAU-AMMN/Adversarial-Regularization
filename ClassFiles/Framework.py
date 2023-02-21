@@ -63,21 +63,21 @@ class GenericFramework(ABC):
             if training_data:
                 
                 image = self.data_pip.load_data(training_data=True)
-                np.random.seed(self.seed) ; noise = np.random.normal(size=(self.measurement_space[0],
+                noise = np.random.normal(size=(self.measurement_space[0],
                                                self.measurement_space[1],
                                                self.colors))
             else:
                 if logOpti == False:
                     image = self.data_pip.load_data(training_data=False, logOpti=False)
-                    np.random.seed(self.seed) ; noise = np.random.normal(size=(self.measurement_space[0],
+                    noise = np.random.normal(size=(self.measurement_space[0],
                                                     self.measurement_space[1],
                                                     self.colors))
                 else:
                     image = self.data_pip.load_data(training_data=False, logOpti=True)
-                    y = np.empty((batch_size,  self.colors, image.shape[0], image.shape[1]), dtype='float32')
+                    y = np.empty((batch_size,  self.colors, self.measurement_space[0], self.measurement_space[1]), dtype='float32')
                     x_true = np.empty((batch_size,  self.colors, image.shape[0], image.shape[1]), dtype='float32')
                     fbp = np.empty((batch_size, self.colors, image.shape[0], image.shape[1]), dtype='float32')
-                    np.random.seed(self.seed) ; noise = np.random.normal(size=(image.shape[0], image.shape[1],self.colors))
+                    noise = np.random.normal(size=(image.shape[0], image.shape[1],self.colors))
             data = self.model.forward_operator(image)
 
             # add white Gaussian noise

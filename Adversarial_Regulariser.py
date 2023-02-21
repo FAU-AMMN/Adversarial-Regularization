@@ -4,7 +4,19 @@ from ClassFiles.data_pips import BSDS, LUNA, ellipses
 from ClassFiles.forward_models import Denoising,CT
 import numpy as np
 import time 
+import random
+import torch
 
+def fix_seed(seed=0):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = True
+
+fix_seed()
 DATA_PATH = "/home/maniraman/Desktop/Ranjani/thesis/BSR/BSDS500/data/images/" #'/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/data/BSR/BSDS500/data/images/', '../Data/data/images/'
 #DATA_PATH = '/home/maniraman/Desktop/Ranjani/thesis/LUNA/manifest-1674842977695/LIDC-IDRI/' #'../Data/luna/'
 SAVES_PATH = '/home/maniraman/Desktop/Ranjani/thesis/git/Adversarial-Regularization/' #'/media/sriranjani/Data/masterThesis/git/Adversarial-Regularization/' #'../Saves/'
@@ -19,13 +31,11 @@ class Experiment1(AdversarialRegulariser):
     # relation between L2 error and regulariser
     # 0 corresponds to pure L2 loss, infty to pure adversarial loss
     mu_default = .3
-    np.random.seed(0)
     
     learning_rate = 0.0001
     step_size = .7
     total_steps_default = 50
     starting_point = 'Mini'
-    seed = 50
 
     def get_network(self, size, colors):
         return ConvNetClassifier(size, colors)
@@ -37,7 +47,7 @@ class Experiment1(AdversarialRegulariser):
         return ellipses(data_path)
 
     def get_model(self, size):
-        return CT(size=size, num_angles=180)
+        return Denoising(size=size)
 
 tm = time.time()
 

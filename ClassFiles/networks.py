@@ -71,7 +71,7 @@ class ConvNetClassifier(nn.Module):
         self.adapAvgPool = nn.AdaptiveAvgPool2d((8,8))
 
         # reshape for classification - assumes image size is multiple of 32
-        finishing_size = int(self.size[0] * self.size[1]/(16*16))
+        finishing_size = int(128 * 128/(16*16))
         self.dimensionality = finishing_size * 128
         #reshaped = tf.reshape(self.conv6, [-1, dimensionality])
         

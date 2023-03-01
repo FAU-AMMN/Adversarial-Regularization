@@ -6,6 +6,14 @@ import numpy as np
 import time 
 import matplotlib.pyplot as plt
 
+#%%
+import sys, os
+sys.path.append(os.path.abspath('../FourierImaging/'))
+
+import fourierimaging as fi
+
+
+#%%
 
 DATA_PATH = '../Data/data/images/'
 SAVES_PATH = '../Saves/'
@@ -16,6 +24,8 @@ resolutions = [(64,64),(128,128),(256,256), (512,512)]
 
 
 #%%
+## Test generation of phantoms for different resolutions
+## Note: PSNR is discretization invariant, SSIM is not, l2 not by factor height*width
 for res in resolutions:
     Adversarial_Regulariser.fix_seed(0)
     experiment = Adversarial_Regulariser.Experiment1(DATA_PATH, SAVES_PATH, image_size = res, exp_name= fname)
@@ -35,4 +45,7 @@ for res in resolutions:
     plt.imshow(noisy_img[0,0])
 
     experiment.log_optimization(batch_size=1, steps=0, step_s=0,mu=lmb)
+# %%
+
+net = experiment.get_network(size=None, colors=1)
 # %%

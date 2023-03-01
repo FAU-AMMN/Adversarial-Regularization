@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 DATA_PATH = '../Data/data/images/'
 SAVES_PATH = '../Saves/'
-fname = 'fixed_data'
+fname = 'new_network_nostride'
 
 Adversarial_Regulariser.fix_seed(42)
 
@@ -21,7 +21,7 @@ lmb = experiment.find_good_lambda(32)
 experiment.mu_default = lmb
 
 #%%
-for k in range(7):
+for k in range(6):
     experiment.train(100)
 experiment.Network_Optimization_writer.close()
 experiment.Reconstruction_Quality_writer.close()

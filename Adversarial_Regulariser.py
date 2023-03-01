@@ -1,5 +1,5 @@
 from ClassFiles.Framework import AdversarialRegulariser
-from ClassFiles.networks import ConvNetClassifier
+from ClassFiles.networks import ConvNetClassifier, ConvNetClassifier_nostride
 from ClassFiles.data_pips import BSDS, LUNA, ellipses
 from ClassFiles.forward_models import Denoising,CT
 import numpy as np
@@ -38,7 +38,7 @@ class Experiment1(AdversarialRegulariser):
     starting_point = 'Mini'
 
     def get_network(self, size, colors):
-        return ConvNetClassifier(size, colors)
+        return ConvNetClassifier_nostride(size, colors)
     
     def unreg_mini(self, y, fbp):
         return self.update_pic(10, 1, y, fbp, 0)

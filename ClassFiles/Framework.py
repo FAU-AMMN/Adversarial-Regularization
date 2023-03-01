@@ -22,7 +22,7 @@ class GenericFramework(ABC):
         pass
 
     @abstractmethod
-    def get_Data_pip(self, path):
+    def get_Data_pip(self, path, image_size):
         # returns an object of the data_pip class.
         pass
 
@@ -31,8 +31,8 @@ class GenericFramework(ABC):
         # Returns an object of the forward_model class.
         pass
 
-    def __init__(self, data_path, saves_path, exp_name=None):
-        self.data_pip = self.get_Data_pip(data_path)
+    def __init__(self, data_path, saves_path, image_size = None, exp_name=None):
+        self.data_pip = self.get_Data_pip(data_path, image_size=image_size)
         self.colors = self.data_pip.colors
         self.image_size = self.data_pip.image_size
         self.network = self.get_network(self.image_size, self.colors)
@@ -41,6 +41,8 @@ class GenericFramework(ABC):
         self.measurement_space = self.model.get_measurement_size()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.network.to(self.device)
+        if image_size != None:
+            self.image_size = image_size
         if exp_name != None:
             self.experiment_name = exp_name
         # finding the correct path for saving models
@@ -138,9 +140,9 @@ class AdversarialRegulariser(GenericFramework):
         self.total_steps = steps
 
     # sets up the network architecture
-    def __init__(self, data_path, saves_path, exp_name=None, train_model=True):
+    def __init__(self, data_path, saves_path, image_size=None, exp_name=None, train_model=True):
         # call superclass init 
-        super(AdversarialRegulariser, self).__init__(data_path, saves_path, exp_name)
+        super(AdversarialRegulariser, self).__init__(data_path, saves_path, image_size=image_size, exp_name=exp_name)
         self.total_steps = self.total_steps_default
         self.optimizer = torch.optim.RMSprop(self.network.parameters(), lr=self.learning_rate)
         if train_model == True:
@@ -284,6 +286,9 @@ class AdversarialRegulariser(GenericFramework):
             del data_error, was_output, cut_reco, quality
             #torch.cuda.empty_cache()
         writer.close()
+        quality_recon = ut.quality(ground_truth, torch.tensor(guess,device=self.device))
+        
+        print(f"l2: {quality_recon[0].detach().cpu().numpy()} PSNR: {quality_recon[1].detach().cpu().numpy()} SSI: {quality_recon[2].detach().cpu().numpy()}")
         self.data_pip.eval_counter = 0
     
     def train_step(self, gen_im, true_im, random_uint, log = False):

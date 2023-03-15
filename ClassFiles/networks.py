@@ -198,3 +198,41 @@ class ConvNetClassifier_nostride(nn.Module):
         output = self.fc2(x)
 
         return output 
+    
+class Spectral_withResize(ConvNetClassifier_nostride):
+
+    def __init__(self, size, colors):
+        super(Spectral_withResize,self).__init__(size, colors)
+        
+        self.conv1 = conv_to_spectral(self.conv1, size)
+        self.conv2 = conv_to_spectral(self.conv2, size)
+        self.conv3 = conv_to_spectral(self.conv3, size)
+        #resize
+        size = (int(size[0]/2),int(size[1]/2))
+        self.conv4 = conv_to_spectral(self.conv4, size)
+        #resize
+        size = (int(size[0]/2),int(size[1]/2))
+        self.conv5 = conv_to_spectral(self.conv5, size)
+        #resize
+        size = (int(size[0]/2),int(size[1]/2))
+        self.conv6 = conv_to_spectral(self.conv6, size)
+        #resize
+        
+class Spectral_withStride(ConvNetClassifier):
+
+    def __init__(self, size, colors):
+        super(Spectral_withStride,self).__init__(size, colors)
+
+        self.conv1 = conv_to_spectral(self.conv1, size)
+        self.conv2 = conv_to_spectral(self.conv2, size)
+        self.conv3 = conv_to_spectral(self.conv3, size)
+        
+        size = (int(size[0]/2),int(size[1]/2))
+        self.conv4 = conv_to_spectral(self.conv4, size)
+        
+        size = (int(size[0]/2),int(size[1]/2))
+        self.conv5 = conv_to_spectral(self.conv5, size)
+        
+        size = (int(size[0]/2),int(size[1]/2))
+        self.conv6 = conv_to_spectral(self.conv6, size)
+        

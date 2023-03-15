@@ -102,6 +102,7 @@ class GenericFramework(ABC):
     
     def load(self):
         dirFiles = os.listdir(self.path+'Data/')
+        #print(self.path)
         if len(dirFiles) != 0:
             #dirFiles.sort(key=lambda f: int(filter(str.isdigit, f)))
             dirFiles.sort()
@@ -244,7 +245,7 @@ class AdversarialRegulariser(GenericFramework):
         if starting_point is None:
             starting_point = self.starting_point
         y, x_true, fbp = self.generate_training_data(
-            batch_size, training_data=False, logOpti=True)
+            batch_size, training_data=False, logOpti=False)
         
         ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
         noisy_image = torch.tensor(fbp, requires_grad=False, device=self.device)

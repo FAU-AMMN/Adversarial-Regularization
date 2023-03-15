@@ -1,5 +1,5 @@
 from ClassFiles.Framework import AdversarialRegulariser
-from ClassFiles.networks import ConvNetClassifier, ConvNetClassifier_nostride
+from ClassFiles.networks import ConvNetClassifier, ConvNetClassifier_nostride, Spectral_withStride, Spectral_withResize
 from ClassFiles.data_pips import BSDS, LUNA, ellipses
 from ClassFiles.forward_models import Denoising,CT
 import numpy as np
@@ -16,10 +16,10 @@ def fix_seed(seed=0):
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.deterministic = True
 
-# fix_seed()
-# DATA_PATH = "/home/maniraman/Desktop/Ranjani/thesis/BSR/BSDS500/data/images/" #'/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/data/BSR/BSDS500/data/images/', '../Data/data/images/'
-# #DATA_PATH = '/home/maniraman/Desktop/Ranjani/thesis/LUNA/manifest-1674842977695/LIDC-IDRI/' #'../Data/luna/'
-# SAVES_PATH = '/home/maniraman/Desktop/Ranjani/thesis/git/Adversarial-Regularization/' #'/media/sriranjani/Data/masterThesis/git/Adversarial-Regularization/' #'../Saves/'
+fix_seed()
+DATA_PATH = "/home/maniraman/Desktop/Ranjani/thesis/BSR/BSDS500/data/images/" #'/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/data/BSR/BSDS500/data/images/', '../Data/data/images/'
+#DATA_PATH = '/home/maniraman/Desktop/Ranjani/thesis/LUNA/manifest-1674842977695/LIDC-IDRI/' #'../Data/luna/'
+SAVES_PATH = '/home/maniraman/Desktop/Ranjani/thesis/git/Adversarial-Regularization/' #'/media/sriranjani/Data/masterThesis/git/Adversarial-Regularization/' #'../Saves/'
 
 
 #Saves_clipped_Noise0.01
@@ -38,7 +38,7 @@ class Experiment1(AdversarialRegulariser):
     starting_point = 'Mini'
 
     def get_network(self, size, colors):
-        return ConvNetClassifier_nostride(size, colors)
+        return Spectral_withResize(size, colors)
     
     def unreg_mini(self, y, fbp):
         return self.update_pic(10, 1, y, fbp, 0)
@@ -49,24 +49,21 @@ class Experiment1(AdversarialRegulariser):
     def get_model(self, size):
         return  Denoising(size=size)
 
-# tm = time.time()
+tm = time.time()
 
-# experiment = Experiment1(DATA_PATH, SAVES_PATH, "Noise0.05_goodlmb_adapPool")
-# experiment.noise_level = 0.05
+experiment = Experiment1(DATA_PATH, SAVES_PATH, exp_name="Noise0.05")
+experiment.noise_level = 0.05
 
-# experiment.data_clipping = 'Clipped_data'
-# lmb = experiment.find_good_lambda(32)
-# experiment.mu_default = lmb
-# for k in range(7):
-#     experiment.train(100)
-# experiment.Network_Optimization_writer.close()
-# experiment.Reconstruction_Quality_writer.close()
-# """experiment.log_optimization(batch_size=32, steps=200, step_s=0.7,mu=lmb)
-# experiment.log_optimization(batch_size=32, steps=200, step_s=0.7,mu=0.4)
-# # """
-# # experiment.log_optimization(batch_size=1, steps=200, step_s=0.7,mu=lmb)
-# # experiment.log_optimization(batch_size=1, steps=200, step_s=0.7,mu=0.4)
+experiment.data_clipping = 'Clipped_data'
+lmb = experiment.find_good_lambda(32)
+experiment.mu_default = lmb
+for k in range(7):
+    experiment.train(100)
+experiment.Network_Optimization_writer.close()
+experiment.Reconstruction_Quality_writer.close()
+experiment.log_optimization(batch_size=32, steps=200, step_s=0.01,mu=lmb)
+experiment.log_optimization(batch_size=32, steps=200, step_s=0.05,mu=lmb)
+experiment.log_optimization(batch_size=32, steps=200, step_s=0.1,mu=lmb)
 
-
-# duration = (time.time()-tm)/60
-# print("Time taken for experiment " + str(duration))
+duration = (time.time()-tm)/60
+print("Time taken for experiment " + str(duration))

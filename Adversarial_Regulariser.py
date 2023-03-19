@@ -1,5 +1,5 @@
 from ClassFiles.Framework import AdversarialRegulariser
-from ClassFiles.networks import ConvNetClassifier, ConvNetClassifier_nostride, Spectral_withStride, Spectral_withResize
+from ClassFiles.networks import ConvNetClassifier, ConvNetClassifier_nostride, Spectral_withResize, Spectral_noConv
 from ClassFiles.data_pips import BSDS, LUNA, ellipses
 from ClassFiles.forward_models import Denoising,CT
 import numpy as np
@@ -38,7 +38,7 @@ class Experiment1(AdversarialRegulariser):
     starting_point = 'Mini'
 
     def get_network(self, size, colors):
-        return Spectral_withResize(size, colors)
+        return Spectral_noConv(size, colors)
     
     def unreg_mini(self, y, fbp):
         return self.update_pic(10, 1, y, fbp, 0)
@@ -51,7 +51,7 @@ class Experiment1(AdversarialRegulariser):
 
 tm = time.time()
 
-experiment = Experiment1(DATA_PATH, SAVES_PATH, exp_name="Noise0.05")
+experiment = Experiment1(DATA_PATH, SAVES_PATH, exp_name="Noise0.05_SpectralNoConv")
 experiment.noise_level = 0.05
 
 experiment.data_clipping = 'Clipped_data'

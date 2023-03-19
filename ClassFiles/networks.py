@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath('../FourierImaging/'))
 
 import fourierimaging as fi
 
-from fourierimaging.modules import TrigonometricResize_2d, conv_to_spectral 
+from fourierimaging.modules import TrigonometricResize_2d, conv_to_spectral, SpectralConv2d
 
 class Conv2dSame(nn.Conv2d):
     #strided convolution
@@ -218,21 +218,81 @@ class Spectral_withResize(ConvNetClassifier_nostride):
         self.conv6 = conv_to_spectral(self.conv6, size)
         #resize
         
-class Spectral_withStride(ConvNetClassifier):
+class Spectral_noConv(nn.Module):
 
-    def __init__(self, size, colors):
-        super(Spectral_withStride,self).__init__(size, colors)
+    def __init__(self, size, colors) -> None:
+        super(Spectral_noConv, self).__init__()    
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.size = size
+        self.colors = colors
 
-        self.conv1 = conv_to_spectral(self.conv1, size)
-        self.conv2 = conv_to_spectral(self.conv2, size)
-        self.conv3 = conv_to_spectral(self.conv3, size)
+        self.resize = TrigonometricResize_2d
+
+        #self.conv1 = nn.Conv2d(self.colors,16,5,padding="same", padding_mode='circular')
+        self.conv1 = SpectralConv2d(in_channels=self.colors, out_channels=16, ksize1=int(size[0]), ksize2=int(size[1]))
+
+        #self.conv2 = nn.Conv2d(16,32,5,padding="same", padding_mode='circular')
+        self.conv2 = SpectralConv2d(in_channels=16, out_channels=32, ksize1=int(size[0]), ksize2=int(size[1]))
+
+        #self.conv3 = nn.Conv2d(32,32,5,padding="same", padding_mode='circular')
+        self.conv3 = SpectralConv2d(in_channels=32, out_channels=32, ksize1=int(size[0]), ksize2=int(size[1]))
+        #resize
+
+        #self.conv4 = nn.Conv2d(32,64,5, padding="same", padding_mode='circular')
+        self.conv4 = SpectralConv2d(in_channels=32, out_channels=64, ksize1=int(size[0]/2), ksize2=int(size[1]/2))
+        #resize
+
+        #self.conv5 = nn.Conv2d(64,64,5, padding="same", padding_mode='circular')
+        self.conv5 = SpectralConv2d(in_channels=64, out_channels=64, ksize1=int(size[0]/4), ksize2=int(size[1]/4))
+        #resize
+
+        #self.conv6 = nn.Conv2d(64,128,5, padding="same", padding_mode='circular')
+        self.conv6 = SpectralConv2d(in_channels=64, out_channels=128, ksize1=int(size[0]/8), ksize2=int(size[1]/8))
+        #resize
+
+        self.adapAvgPool = nn.AdaptiveAvgPool2d((8,8))
+
+        # reshape for classification - assumes image size is multiple of 32
+        finishing_size = int(128 * 128/(16*16))
+        self.dimensionality = finishing_size * 128
         
-        size = (int(size[0]/2),int(size[1]/2))
-        self.conv4 = conv_to_spectral(self.conv4, size)
+        self.fc1 = nn.Linear(self.dimensionality, 256)
+        self.fc2 = nn.Linear(256, 1)
+
+    def forward(self, x):
         
-        size = (int(size[0]/2),int(size[1]/2))
-        self.conv5 = conv_to_spectral(self.conv5, size)
-        
-        size = (int(size[0]/2),int(size[1]/2))
-        self.conv6 = conv_to_spectral(self.conv6, size)
-        
+        x = x.type(torch.FloatTensor)
+        x = x.to(self.device)
+        x = self.conv1(x)
+        x = nn.LeakyReLU(negative_slope=0.2)(x)
+        x = self.conv2(x)
+        x = nn.LeakyReLU(negative_slope=0.2)(x)
+
+        x = self.conv3(x)
+        new_size = [int(np.ceil(x.shape[-2]/2)), int(np.ceil(x.shape[-1]/2))] 
+        x = self.resize([new_size[0], new_size[1]])(x)
+
+        x = nn.LeakyReLU(negative_slope=0.2)(x)
+        x = self.conv4(x)
+        new_size = [int(np.ceil(x.shape[-2]/2)), int(np.ceil(x.shape[-1]/2))] 
+        x = self.resize([new_size[0], new_size[1]])(x)
+
+        x = nn.LeakyReLU(negative_slope=0.2)(x)
+        x = self.conv5(x)
+        new_size = [int(np.ceil(x.shape[-2]/2)), int(np.ceil(x.shape[-1]/2))] 
+        x = self.resize([new_size[0], new_size[1]])(x)
+
+        x = nn.LeakyReLU(negative_slope=0.2)(x)
+        x = self.conv6(x)
+        new_size = [int(np.ceil(x.shape[-2]/2)), int(np.ceil(x.shape[-1]/2))] 
+        x = self.resize([new_size[0], new_size[1]])(x)
+
+        x = nn.LeakyReLU(negative_slope=0.2)(x)
+
+        x = self.adapAvgPool(x)
+        x = torch.reshape(x, (-1,self.dimensionality))    
+        x = self.fc1(x)
+        x = nn.LeakyReLU(negative_slope=0.3)(x)
+        output = self.fc2(x)
+
+        return output     

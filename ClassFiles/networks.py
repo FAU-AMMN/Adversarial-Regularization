@@ -228,25 +228,19 @@ class Spectral_noConv(nn.Module):
 
         self.resize = TrigonometricResize_2d
 
-        #self.conv1 = nn.Conv2d(self.colors,16,5,padding="same", padding_mode='circular')
         self.conv1 = SpectralConv2d(in_channels=self.colors, out_channels=16, ksize1=int(size[0]), ksize2=int(size[1]))
 
-        #self.conv2 = nn.Conv2d(16,32,5,padding="same", padding_mode='circular')
         self.conv2 = SpectralConv2d(in_channels=16, out_channels=32, ksize1=int(size[0]), ksize2=int(size[1]))
 
-        #self.conv3 = nn.Conv2d(32,32,5,padding="same", padding_mode='circular')
         self.conv3 = SpectralConv2d(in_channels=32, out_channels=32, ksize1=int(size[0]), ksize2=int(size[1]))
         #resize
 
-        #self.conv4 = nn.Conv2d(32,64,5, padding="same", padding_mode='circular')
         self.conv4 = SpectralConv2d(in_channels=32, out_channels=64, ksize1=int(size[0]/2), ksize2=int(size[1]/2))
         #resize
 
-        #self.conv5 = nn.Conv2d(64,64,5, padding="same", padding_mode='circular')
         self.conv5 = SpectralConv2d(in_channels=64, out_channels=64, ksize1=int(size[0]/4), ksize2=int(size[1]/4))
         #resize
 
-        #self.conv6 = nn.Conv2d(64,128,5, padding="same", padding_mode='circular')
         self.conv6 = SpectralConv2d(in_channels=64, out_channels=128, ksize1=int(size[0]/8), ksize2=int(size[1]/8))
         #resize
 

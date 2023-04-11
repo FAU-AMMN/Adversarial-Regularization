@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 DATA_PATH = '../Data/data/images/'
 SAVES_PATH = '../Saves/'
-fname = 'new_network_nostride'
+fname = 'fno_nostride_k1'
 
 Adversarial_Regulariser.fix_seed(42)
 
@@ -26,5 +26,5 @@ for k in range(6):
 experiment.Network_Optimization_writer.close()
 experiment.Reconstruction_Quality_writer.close()
 # %%
-experiment.log_optimization(batch_size=1, steps=200, step_s=0.1,mu=lmb)
+experiment.log_optimization(batch_size=1, steps=200, step_s=0.01,mu=lmb)
 # %%

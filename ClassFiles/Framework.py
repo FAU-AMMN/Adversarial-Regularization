@@ -31,12 +31,17 @@ class GenericFramework(ABC):
         # Returns an object of the forward_model class.
         pass
 
-    def __init__(self, data_path, saves_path, image_size = None, exp_name=None):
+    def __init__(self, data_path, saves_path, image_size = None, exp_name=None, model_input_size=None):
+
         self.data_pip = self.get_Data_pip(data_path, image_size=image_size)
         self.colors = self.data_pip.colors
         self.image_size = self.data_pip.image_size
-        self.network = self.get_network(self.image_size, self.colors)
-        self.model = self.get_model(self.image_size)
+        if model_input_size is None:
+            self.model_input_size = self.image_size
+        else:
+            self.model_input_size = model_input_size
+        self.network = self.get_network(self.model_input_size, self.colors)
+        self.model = self.get_model(self.model_input_size)
         self.image_space = self.model.get_image_size()
         self.measurement_space = self.model.get_measurement_size()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -55,30 +60,31 @@ class GenericFramework(ABC):
     def generate_training_data(self, batch_size, training_data=True, logOpti=False):
         # method to generate training data given the current model type
         y = np.empty(
-            (batch_size,  self.colors, self.measurement_space[0], self.measurement_space[1]), dtype='float32')
+            (batch_size,  self.colors, self.image_size[0], self.image_size[1]), dtype='float32')
         x_true = np.empty(
-            (batch_size,  self.colors, self.image_space[0], self.image_space[1]), dtype='float32')
+            (batch_size,  self.colors, self.image_size[0], self.image_size[1]), dtype='float32')
         fbp = np.empty(
-            (batch_size, self.colors, self.image_space[0], self.image_space[1]), dtype='float32')
+            (batch_size, self.colors, self.image_size[0], self.image_size[1]), dtype='float32')
 
         for i in range(batch_size):
             if training_data:
                 
                 image = self.data_pip.load_data(training_data=True)
-                noise = np.random.normal(size=(self.measurement_space[0],
-                                               self.measurement_space[1],
+                noise = np.random.normal(size=(image.shape[0],
+                                               image.shape[1],
                                                self.colors))
             else:
                 if logOpti == False:
                     image = self.data_pip.load_data(training_data=False, logOpti=False)
-                    noise = np.random.normal(size=(self.measurement_space[0],
-                                                    self.measurement_space[1],
+                    noise = np.random.normal(size=(self.image_size[0],
+                                                    self.image_size[1],
                                                     self.colors))
                 else:
                     image = self.data_pip.load_data(training_data=False, logOpti=True)
-                    y = np.empty((batch_size,  self.colors, self.measurement_space[0], self.measurement_space[1]), dtype='float32')
-                    x_true = np.empty((batch_size,  self.colors, image.shape[0], image.shape[1]), dtype='float32')
-                    fbp = np.empty((batch_size, self.colors, image.shape[0], image.shape[1]), dtype='float32')
+                    if batch_size == 1:
+                        y = np.empty((batch_size,  self.colors, image.shape[0], image.shape[1]), dtype='float32')
+                        x_true = np.empty((batch_size,  self.colors, image.shape[0], image.shape[1]), dtype='float32')
+                        fbp = np.empty((batch_size, self.colors, image.shape[0], image.shape[1]), dtype='float32')
                     noise = np.random.normal(size=(image.shape[0], image.shape[1],self.colors))
             data = self.model.forward_operator(image)
 
@@ -141,16 +147,20 @@ class AdversarialRegulariser(GenericFramework):
         self.total_steps = steps
 
     # sets up the network architecture
-    def __init__(self, data_path, saves_path, image_size=None, exp_name=None, train_model=True):
+    def __init__(self, data_path, saves_path, image_size=None, exp_name=None, train_model=True, model_input_size=None, conv_to_spectral = False):
         # call superclass init 
-        super(AdversarialRegulariser, self).__init__(data_path, saves_path, image_size=image_size, exp_name=exp_name)
+        super(AdversarialRegulariser, self).__init__(data_path, saves_path, image_size=image_size, exp_name=exp_name, model_input_size=model_input_size)
         self.total_steps = self.total_steps_default
+        #param_check = list(self.network.parameters())
         self.optimizer = torch.optim.RMSprop(self.network.parameters(), lr=self.learning_rate)
         if train_model == True:
             self.Network_Optimization_writer = SummaryWriter(log_dir=self.path + 'Logs/Network_Optimization/', comment='Network_Optimization')
             self.Reconstruction_Quality_writer = SummaryWriter(log_dir=self.path + 'Logs/Network_Optimization/', comment='Reconstruction_Quality')
 
         self.load()
+        if conv_to_spectral:
+            self.network.convert_to_spectral()
+
     #self.update_pic(1, step_s, y, guess, mu)
     def update_pic(self, steps, stepsize, measurement, guess, mu):
         
@@ -231,7 +241,7 @@ class AdversarialRegulariser(GenericFramework):
 
 
     def log_optimization(self, batch_size=None, steps=None, step_s=None,
-                         mu=None, starting_point=None):
+                         mu=None, starting_point=None, logOpti=False):
         # Logs every step of picture optimization.
         # Can be used to play with the variational formulation once training is complete
         if batch_size is None:
@@ -244,48 +254,160 @@ class AdversarialRegulariser(GenericFramework):
             mu = self.mu_default
         if starting_point is None:
             starting_point = self.starting_point
-        y, x_true, fbp = self.generate_training_data(
-            batch_size, training_data=False, logOpti=False)
         
-        ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
-        noisy_image = torch.tensor(fbp, requires_grad=False, device=self.device)
-        quality_noisy = ut.quality(ground_truth, noisy_image)
-        
-        print(f"l2: {quality_noisy[0].detach().cpu().numpy()} PSNR: {quality_noisy[1].detach().cpu().numpy()} SSI: {quality_noisy[2].detach().cpu().numpy()}")
-        
-        guess = np.copy(fbp)
-        if starting_point == 'Mini':
-            guess, fullError = self.unreg_mini(y, fbp)
+        #img_rand_ind = np.random.randint(0, batch_size)
+        img_rand_ind = 5 
+
+        if not logOpti:
+            Data_Loss = []
+            Regulariser_output = []
+            Penalty = []
+
+            L2_recon_to_ground_truth = []
+            PSNR_recon_to_ground_truth = []
+            SSI_recon_to_ground_truth = []
+            
+            L2_noisy_to_ground_truth = []
+            PSNR_noisy_to_ground_truth = []
+            SSI_noisy_to_ground_truth = []
+            
+            Reconstruction = []
+
+            y, x_true, fbp = self.generate_training_data(
+                batch_size, training_data=False, logOpti=logOpti)
+            
+            ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
+            noisy_image = torch.tensor(fbp, requires_grad=False, device=self.device)
+            quality_noisy = ut.quality(ground_truth, noisy_image)
+            
+            print(f"l2: {quality_noisy[0].detach().cpu().numpy()} PSNR: {quality_noisy[1].detach().cpu().numpy()} SSI: {quality_noisy[2].detach().cpu().numpy()}")
+            
+            guess = np.copy(fbp)
+            if starting_point == 'Mini':
+                guess, fullError = self.unreg_mini(y, fbp)
+            
+            for k in range(steps+1):
+
+                data_error, was_output, cut_reco, quality = self.calculate_pic_grad(reconstruction=guess, data_term=y, mu=mu, ground_truth=x_true)
+                ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
+                noisy_image = torch.tensor(y, requires_grad=False, device=self.device)
+                quality_noisy = ut.quality(ground_truth, noisy_image)
+
+
+                Data_Loss.append(data_error.detach().cpu().numpy())
+                Regulariser_output.append(was_output.detach().cpu().numpy())
+                Penalty.append(fullError.detach().cpu().numpy())
+                del fullError
+                L2_recon_to_ground_truth.append(quality[0].detach().cpu().numpy())
+                PSNR_recon_to_ground_truth.append(quality[1].detach().cpu().numpy())
+                SSI_recon_to_ground_truth.append(quality[2].detach().cpu().numpy())
+
+                L2_noisy_to_ground_truth.append(quality_noisy[0].detach().cpu().numpy())
+                PSNR_noisy_to_ground_truth.append(quality_noisy[1].detach().cpu().numpy())
+                SSI_noisy_to_ground_truth.append(quality_noisy[2].detach().cpu().numpy())
+                
+                Reconstruction.append(cut_reco.detach().cpu().numpy()[img_rand_ind])
+                
+                guess, fullError = self.update_pic(1, step_s, y, guess, mu)
+                del data_error, was_output, cut_reco, quality
+
+            x_gt = x_true[img_rand_ind]
+            x_noisy = y[img_rand_ind]
+
+        else:
+            
+            Data_Loss = np.zeros((batch_size, steps+1))
+            Regulariser_output = np.zeros((batch_size, steps+1))
+            Penalty = np.zeros((batch_size, steps+1))
+
+            L2_recon_to_ground_truth = np.zeros((batch_size, steps+1))
+            PSNR_recon_to_ground_truth = np.zeros((batch_size, steps+1))
+            SSI_recon_to_ground_truth = np.zeros((batch_size, steps+1))
+            
+            L2_noisy_to_ground_truth = np.zeros((batch_size, steps+1))
+            PSNR_noisy_to_ground_truth = np.zeros((batch_size, steps+1))
+            SSI_noisy_to_ground_truth = np.zeros((batch_size, steps+1))
+            
+            Reconstruction = []
+
+            for batch_counter in range(batch_size):
+
+                y, x_true, fbp = self.generate_training_data(
+                    1, training_data=False, logOpti=logOpti)
+                
+                ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
+                noisy_image = torch.tensor(fbp, requires_grad=False, device=self.device)
+                quality_noisy = ut.quality(ground_truth, noisy_image)
+                
+                print(f"l2: {quality_noisy[0].detach().cpu().numpy()} PSNR: {quality_noisy[1].detach().cpu().numpy()} SSI: {quality_noisy[2].detach().cpu().numpy()}")
+                
+                guess = np.copy(fbp)
+                if starting_point == 'Mini':
+                    guess, fullError = self.unreg_mini(y, fbp)
+                
+                for k in range(steps+1):
+
+                    data_error, was_output, cut_reco, quality = self.calculate_pic_grad(reconstruction=guess, data_term=y, mu=mu, ground_truth=x_true)
+                    ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
+                    noisy_image = torch.tensor(y, requires_grad=False, device=self.device)
+                    quality_noisy = ut.quality(ground_truth, noisy_image)
+
+
+                    Data_Loss[batch_counter][k] = data_error.detach().cpu().numpy()
+                    Regulariser_output[batch_counter][k] = was_output.detach().cpu().numpy()
+                    Penalty[batch_counter][k] = fullError.detach().cpu().numpy()
+                    del fullError
+                    L2_recon_to_ground_truth[batch_counter][k] = quality[0].detach().cpu().numpy()
+                    PSNR_recon_to_ground_truth[batch_counter][k] = quality[1].detach().cpu().numpy()
+                    SSI_recon_to_ground_truth[batch_counter][k] = quality[2].detach().cpu().numpy()
+
+                    L2_noisy_to_ground_truth[batch_counter][k] = quality_noisy[0].detach().cpu().numpy()
+                    PSNR_noisy_to_ground_truth[batch_counter][k] = quality_noisy[1].detach().cpu().numpy()
+                    SSI_noisy_to_ground_truth[batch_counter][k] = quality_noisy[2].detach().cpu().numpy()
+
+                    if batch_counter == img_rand_ind:
+                        Reconstruction.append(cut_reco.detach().cpu().numpy()[0])
+                    
+                    guess, fullError = self.update_pic(1, step_s, y, guess, mu)
+                    del data_error, was_output, cut_reco, quality
+                if batch_counter == img_rand_ind:
+                    x_gt = x_true[0]
+                    x_noisy = y[0]
+
+            Data_Loss = np.mean(Data_Loss, axis=0)
+            Regulariser_output = np.mean(Regulariser_output, axis=0)
+            Penalty = np.mean(Penalty, axis=0)
+
+            L2_recon_to_ground_truth = np.mean(L2_recon_to_ground_truth, axis=0)
+            PSNR_recon_to_ground_truth = np.mean(PSNR_recon_to_ground_truth, axis=0)
+            SSI_recon_to_ground_truth = np.mean(SSI_recon_to_ground_truth, axis=0)
+            
+            L2_noisy_to_ground_truth = np.mean(L2_noisy_to_ground_truth, axis=0)
+            PSNR_noisy_to_ground_truth = np.mean(PSNR_noisy_to_ground_truth, axis=0)
+            SSI_noisy_to_ground_truth = np.mean(SSI_noisy_to_ground_truth, axis=0)
+
         writer = SummaryWriter(
             self.path + '/Logs/Picture_Opt/mu_{}_step_s_{}'.format(mu, step_s))
         for k in range(steps+1):
             #print(f'Optimization with {mu} step: {k}')
-            data_error, was_output, cut_reco, quality = self.calculate_pic_grad(reconstruction=guess, data_term=y, mu=mu, ground_truth=x_true)
             
-            ground_truth = torch.tensor(x_true, requires_grad=False, device=self.device)
-            noisy_image = torch.tensor(y, requires_grad=False, device=self.device)
-            quality_noisy = ut.quality(ground_truth, noisy_image)
+            writer.add_scalar('Picture_Optimization/Data_Loss', Data_Loss[k], k)
+            writer.add_scalar('Picture_Optimization/Regulariser_output', Regulariser_output[k], k)
+            writer.add_scalar('Picture_Optimization/Penalty', Penalty[k], k)
 
-            
-            writer.add_scalar('Picture_Optimization/Data_Loss', data_error.detach().cpu().numpy(), k)
-            writer.add_scalar('Picture_Optimization/Regulariser_output', was_output.detach().cpu().numpy(), k)
-            writer.add_scalar('Picture_Optimization/Penalty', fullError.detach().cpu().numpy(), k)
-            del fullError
-            writer.add_scalar('Picture_Optimization/L2_recon_to_ground_truth', quality[0].detach().cpu().numpy(), k)
-            writer.add_scalar('Picture_Optimization/PSNR_recon_to_ground_truth', quality[1].detach().cpu().numpy(), k)
-            writer.add_scalar('Picture_Optimization/SSI_recon_to_ground_truth', quality[2].detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/L2_recon_to_ground_truth', L2_recon_to_ground_truth[k], k)
+            writer.add_scalar('Picture_Optimization/PSNR_recon_to_ground_truth', PSNR_recon_to_ground_truth[k], k)
+            writer.add_scalar('Picture_Optimization/SSI_recon_to_ground_truth', SSI_recon_to_ground_truth[k], k)
 
-            writer.add_scalar('Picture_Optimization/L2_noisy_to_ground_truth', quality_noisy[0].detach().cpu().numpy(), k)
-            writer.add_scalar('Picture_Optimization/PSNR_noisy_to_ground_truth', quality_noisy[1].detach().cpu().numpy(), k)
-            writer.add_scalar('Picture_Optimization/SSI_noisy_to_ground_truth', quality_noisy[2].detach().cpu().numpy(), k)
+            writer.add_scalar('Picture_Optimization/L2_noisy_to_ground_truth', L2_noisy_to_ground_truth[k], k)
+            writer.add_scalar('Picture_Optimization/PSNR_noisy_to_ground_truth', PSNR_noisy_to_ground_truth[k], k)
+            writer.add_scalar('Picture_Optimization/SSI_noisy_to_ground_truth', SSI_noisy_to_ground_truth[k], k)
             
-            writer.add_image('Picture_Optimization/Reconstruction', cut_reco.detach().cpu().numpy()[0], k)
-            writer.add_image('Picture_Optimization/Noisy_Image', y[0], k)
-            writer.add_image('Picture_Optimization/Ground_truth', x_true[0], k)
+            writer.add_image('Picture_Optimization/Reconstruction', Reconstruction[k], k)
+
+            writer.add_image('Picture_Optimization/Noisy_Image', x_noisy, k)
+            writer.add_image('Picture_Optimization/Ground_truth', x_gt, k)
             
-            guess, fullError = self.update_pic(1, step_s, y, guess, mu)
-            del data_error, was_output, cut_reco, quality
-            #torch.cuda.empty_cache()
         writer.close()
         quality_recon = ut.quality(ground_truth, torch.tensor(guess,device=self.device))
         

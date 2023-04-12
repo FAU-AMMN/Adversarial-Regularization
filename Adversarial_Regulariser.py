@@ -1,5 +1,5 @@
 from ClassFiles.Framework import AdversarialRegulariser
-from ClassFiles.networks import ConvNetClassifier, ConvNetClassifier_nostride, Spectral_withResize, Spectral_noConv
+from ClassFiles.networks import ConvNetClassifier, ConvNetClassifier_nostride, Spectral_withResize, Spectral_FromTrainedConv
 from ClassFiles.data_pips import BSDS, LUNA, ellipses
 from ClassFiles.forward_models import Denoising,CT
 import numpy as np
@@ -38,12 +38,13 @@ class Experiment1(AdversarialRegulariser):
     starting_point = 'Mini'
 
     def get_network(self, size, colors):
-        return Spectral_noConv(size, colors)
+        return Spectral_withResize(size, colors)
     
     def unreg_mini(self, y, fbp):
         return self.update_pic(10, 1, y, fbp, 0)
 
     def get_Data_pip(self, data_path, image_size = None):
+        #image_size = (256,256) #change for different dimension during evaluation
         return ellipses(data_path, image_size=image_size)
 
     def get_model(self, size):
@@ -51,19 +52,20 @@ class Experiment1(AdversarialRegulariser):
 
 tm = time.time()
 
-experiment = Experiment1(DATA_PATH, SAVES_PATH, exp_name="Noise0.05_SpectralNoConv")
+experiment = Experiment1(DATA_PATH, SAVES_PATH, exp_name="Noise0.05_Spectral_withResize",
+                        model_input_size=(128,128), #image size during training
+                        conv_to_spectral=False) #False while training CNN or FNO 
+
 experiment.noise_level = 0.05
 
 experiment.data_clipping = 'Clipped_data'
 lmb = experiment.find_good_lambda(32)
 experiment.mu_default = lmb
-for k in range(7):
+"""for k in range(7):
     experiment.train(100)
 experiment.Network_Optimization_writer.close()
-experiment.Reconstruction_Quality_writer.close()
-experiment.log_optimization(batch_size=32, steps=200, step_s=0.01,mu=lmb)
-experiment.log_optimization(batch_size=32, steps=200, step_s=0.05,mu=lmb)
-experiment.log_optimization(batch_size=32, steps=200, step_s=0.1,mu=lmb)
+experiment.Reconstruction_Quality_writer.close()"""
+experiment.log_optimization(batch_size=16, steps=200, step_s=0.01,mu=lmb, logOpti=False)
 
 duration = (time.time()-tm)/60
 print("Time taken for experiment " + str(duration))

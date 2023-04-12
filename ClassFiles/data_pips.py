@@ -32,8 +32,8 @@ class BSDS(data_pip):
     name = 'BSDS'
     colors = 3
 
-    def __init__(self, path):
-        super(BSDS, self).__init__(path)
+    def __init__(self, path, image_size = None):
+        super(BSDS, self).__init__(path, image_size)
         # set up the training data file system
         self.train_list = ut.find('*.jpg', self.data_path+'Training_Data')
         self.train_amount = len(self.train_list)
@@ -73,7 +73,7 @@ class BSDS(data_pip):
         pic = self.single_image(training_data=training_data)
         pic = ut.normalize_image(pic)
         if logOpti == False:
-            pic = resize(pic, [128, 128])
+            pic = resize(pic, self.image_size)
         pic = ut.scale_to_unit_intervall(pic)
         #size = pic.shape
         #ul, lr = self.edgepoint(size[0], size[1])

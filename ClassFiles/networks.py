@@ -130,15 +130,15 @@ class ConvNetClassifier_nostride(nn.Module):
 
         self.resize = TrigonometricResize_2d
 
-        self.conv1 = nn.Conv2d(self.colors,16,1,padding="same", padding_mode='circular')
-        self.conv2 = nn.Conv2d(16,32,1,padding="same", padding_mode='circular')
-        self.conv3 = nn.Conv2d(32,32,1,padding="same", padding_mode='circular')
+        self.conv1 = nn.Conv2d(self.colors,16,5,padding="same", padding_mode='circular')
+        self.conv2 = nn.Conv2d(16,32,5,padding="same", padding_mode='circular')
+        self.conv3 = nn.Conv2d(32,32,5,padding="same", padding_mode='circular')
         #resize
-        self.conv4 = nn.Conv2d(32,64,1, padding="same", padding_mode='circular')
+        self.conv4 = nn.Conv2d(32,64,5, padding="same", padding_mode='circular')
         #resize
-        self.conv5 = nn.Conv2d(64,64,1, padding="same", padding_mode='circular')
+        self.conv5 = nn.Conv2d(64,64,5, padding="same", padding_mode='circular')
         #resize
-        self.conv6 = nn.Conv2d(64,128,1, padding="same", padding_mode='circular')
+        self.conv6 = nn.Conv2d(64,128,5, padding="same", padding_mode='circular')
         #resize
 
         self.adapAvgPool = nn.AdaptiveAvgPool2d((8,8))

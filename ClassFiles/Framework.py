@@ -7,6 +7,7 @@ from ClassFiles import util as ut
 import torch
 import torch.nn as nn
 from torch.utils.tensorboard.writer import SummaryWriter
+import gc
 
 class GenericFramework(ABC):
     model_name = 'no_model'
@@ -90,7 +91,6 @@ class GenericFramework(ABC):
 
             # add white Gaussian noise
             noisy_data = data + self.noise_level*noise
-            #noisy_data = data
             if self.data_clipping == "Clipped_data":
                 noisy_data = np.clip(noisy_data, a_min = 0, a_max = 1)                                                                                    
             fbp[i, ...] = np.transpose(self.model.inverse(noisy_data), axes=[2,0,1])
@@ -128,7 +128,7 @@ class GenericFramework(ABC):
 class AdversarialRegulariser(GenericFramework):
     model_name = 'Adversarial_Regulariser'
     # the absolut noise level
-    batch_size = 16
+    batch_size = 8
     # relation between L2 error and regulariser
     # 0 corresponds to pure L2 loss, infty to pure adversarial loss
     mu_default = 1.5
@@ -156,10 +156,13 @@ class AdversarialRegulariser(GenericFramework):
         if train_model == True:
             self.Network_Optimization_writer = SummaryWriter(log_dir=self.path + 'Logs/Network_Optimization/', comment='Network_Optimization')
             self.Reconstruction_Quality_writer = SummaryWriter(log_dir=self.path + 'Logs/Network_Optimization/', comment='Reconstruction_Quality')
-
+            self.Network_Optimization_csv = open(self.path + 'Logs/Network_Optimization/network_optimization_loss.csv', "w")
+            self.Reconstruction_Quality_csv = open(self.path + 'Logs/Network_Optimization/reconstruction_quality.csv', "w")
+            self.Network_Optimization_csv.write("Step,Data_Difference,Lipschitz_Regulariser,Overall_Net_Loss\n")
+            self.Reconstruction_Quality_csv.write("Step,Data_Loss,Regulariser_output,Penalty,L2_recon_to_ground_truth,PSNR_recon_to_ground_truth,SSI_recon_to_ground_truth,L2_noisy_to_ground_truth,PSNR_noisy_to_ground_truth,SSI_noisy_to_ground_truth\n")
         self.load()
         if conv_to_spectral:
-            self.network.convert_to_spectral()
+            self.network.convert_to_spectral(self.image_size)
 
     #self.update_pic(1, step_s, y, guess, mu)
     def update_pic(self, steps, stepsize, measurement, guess, mu):
@@ -200,17 +203,30 @@ class AdversarialRegulariser(GenericFramework):
         noisy_image = torch.tensor(fbp, requires_grad=False, device=self.device)
         quality_noisy = ut.quality(ground_truth, noisy_image)
 
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Data_Loss', data_error.detach().cpu().numpy(), step)
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Regulariser_output', was_output.detach().cpu().numpy(), step)
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Penalty', fullError.detach().cpu().numpy(), step)
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/L2_recon_to_ground_truth', quality[0].detach().cpu().numpy(), step)
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/PSNR_recon_to_ground_truth', quality[1].detach().cpu().numpy(), step)
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/SSI_recon_to_ground_truth', quality[2].detach().cpu().numpy(), step)
+        data_error_npy = data_error.detach().cpu().numpy()
+        was_output_npy = was_output.detach().cpu().numpy()
+        fullError_npy = fullError.detach().cpu().numpy()
+        quality_1_npy = quality[0].detach().cpu().numpy()
+        quality_2_npy = quality[1].detach().cpu().numpy()
+        quality_3_npy = quality[2].detach().cpu().numpy()
+        quality_1_noisy_npy  = quality_noisy[0].detach().cpu().numpy()
+        quality_2_noisy_npy  = quality_noisy[1].detach().cpu().numpy()
+        quality_3_noisy_npy  = quality_noisy[2].detach().cpu().numpy()
+        
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Data_Loss', data_error_npy, step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Regulariser_output', was_output_npy, step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/Penalty', fullError_npy, step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/L2_recon_to_ground_truth', quality_1_npy, step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/PSNR_recon_to_ground_truth', quality_2_npy, step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/SSI_recon_to_ground_truth', quality_3_npy, step)
 
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/L2_ground_truth_to_noisy', quality_noisy[0].detach().cpu().numpy(), step)
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/PSNR_ground_truth_to_noisy', quality_noisy[1].detach().cpu().numpy(), step)
-        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/SSI_ground_truth_to_noisy', quality_noisy[2].detach().cpu().numpy(), step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/L2_ground_truth_to_noisy', quality_1_noisy_npy, step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/PSNR_ground_truth_to_noisy', quality_2_noisy_npy, step)
+        self.Reconstruction_Quality_writer.add_scalar('Reconstruction_Quality/SSI_ground_truth_to_noisy', quality_3_noisy_npy, step)
 
+        self.Reconstruction_Quality_csv.write("{},{},{},{},{},{},{},{},{},{}\n".format(step, data_error_npy, was_output_npy, fullError_npy, 
+                                                           quality_1_npy, quality_2_npy, quality_3_npy,
+                                                           quality_1_noisy_npy, quality_2_noisy_npy, quality_3_noisy_npy))
 
         self.Reconstruction_Quality_writer.add_image('Reconstruction_Quality/Reconstruction', cut_reco.detach().cpu().numpy()[0], step)
         self.Reconstruction_Quality_writer.add_image('Reconstruction_Quality/Noisy_Image', y[0], step)
@@ -235,10 +251,15 @@ class AdversarialRegulariser(GenericFramework):
         else:
             step = self.optimizer.state[self.optimizer.param_groups[0]["params"][-1]]["step"]
         
-        self.Network_Optimization_writer.add_scalar('Network_Optimization/Data_Difference', wasserstein_loss.item(), step)
-        self.Network_Optimization_writer.add_scalar('Network_Optimization/Lipschitz_Regulariser', regulariser_was.detach().cpu().numpy(), step)
-        self.Network_Optimization_writer.add_scalar('Network_Optimization/Overall_Net_Loss', loss.item(), step)
+        wasserstein_loss_npy = wasserstein_loss.item()
+        regulariser_was_npy = regulariser_was.detach().cpu().numpy()
+        loss_npy = loss.item()
+        self.Network_Optimization_writer.add_scalar('Network_Optimization/Data_Difference', wasserstein_loss_npy, step)
+        self.Network_Optimization_writer.add_scalar('Network_Optimization/Lipschitz_Regulariser', regulariser_was_npy, step)
+        self.Network_Optimization_writer.add_scalar('Network_Optimization/Overall_Net_Loss', loss_npy, step)
 
+        self.Network_Optimization_csv.write("{},{},{},{}\n".format(step, wasserstein_loss_npy, regulariser_was_npy, loss_npy))
+        
 
     def log_optimization(self, batch_size=None, steps=None, step_s=None,
                          mu=None, starting_point=None, logOpti=False):
@@ -256,7 +277,7 @@ class AdversarialRegulariser(GenericFramework):
             starting_point = self.starting_point
         
         #img_rand_ind = np.random.randint(0, batch_size)
-        img_rand_ind = 5 
+        img_rand_ind = 0 
 
         if not logOpti:
             Data_Loss = []
@@ -388,6 +409,8 @@ class AdversarialRegulariser(GenericFramework):
 
         writer = SummaryWriter(
             self.path + '/Logs/Picture_Opt/mu_{}_step_s_{}'.format(mu, step_s))
+        f = open(self.path + '/Logs/Picture_Opt/mu_{}_step_s_{}.csv'.format(mu, step_s), "w")
+        f.write("Step,Data_Loss,Regulariser_output,Penalty,L2_recon_to_ground_truth,PSNR_recon_to_ground_truth,SSI_recon_to_ground_truth,L2_noisy_to_ground_truth,PSNR_noisy_to_ground_truth,SSI_noisy_to_ground_truth\n")
         for k in range(steps+1):
             #print(f'Optimization with {mu} step: {k}')
             
@@ -408,7 +431,12 @@ class AdversarialRegulariser(GenericFramework):
             writer.add_image('Picture_Optimization/Noisy_Image', x_noisy, k)
             writer.add_image('Picture_Optimization/Ground_truth', x_gt, k)
             
+            f.write("{},{},{},{},{},{},{},{},{},{}\n".format(k, Data_Loss[k], Regulariser_output[k], Penalty[k], 
+                                                           L2_recon_to_ground_truth[k], PSNR_recon_to_ground_truth[k], SSI_recon_to_ground_truth[k],
+                                                           L2_noisy_to_ground_truth[k], PSNR_noisy_to_ground_truth[k], SSI_noisy_to_ground_truth[k]))
+
         writer.close()
+        f.close()
         quality_recon = ut.quality(ground_truth, torch.tensor(guess,device=self.device))
         
         print(f"l2: {quality_recon[0].detach().cpu().numpy()} PSNR: {quality_recon[1].detach().cpu().numpy()} SSI: {quality_recon[2].detach().cpu().numpy()}")
@@ -430,12 +458,6 @@ class AdversarialRegulariser(GenericFramework):
         random_uint_exp = torch.unsqueeze(torch.unsqueeze(
             torch.unsqueeze(random_uint, axis=1), axis=1), axis=1)
         
-        """
-        !!!!! Formual differeing from the paper.#
-        original in code : inter = torch.multiply(gen_im, random_uint_exp) + torch.multiply(true_im, 1 - random_uint_exp)
-        Paper            : inter = torch.multiply(true_im, random_uint_exp) + torch.multiply(gen_im, 1 - random_uint_exp)
-        """
-
         inter = torch.multiply(gen_im, random_uint_exp) + torch.multiply(true_im, 1 - random_uint_exp)
         
         inter_was = self.network(inter)
@@ -475,6 +497,7 @@ class AdversarialRegulariser(GenericFramework):
             self.optimizer.step()
             del loss, wasserstein_loss, regulariser_was
             #torch.cuda.empty_cache()
+            gc.collect()
         step = self.optimizer.state[self.optimizer.param_groups[0]["params"][-1]]["step"]
         self.save(step)
         
@@ -504,7 +527,7 @@ class AdversarialRegulariser(GenericFramework):
         was_output = torch.mean(self.network(reconstruction))
 
         if len(ground_truth) == 0:
-            full_error = mu * was_output + data_error
+            full_error = mu * was_output + data_error #lamba * Phi_{theta} + ||Ax - y||
 
             # get the batch size - all gradients have to be scaled by the batch size as they are taken over previously
             # averaged quantities already. Makes gradients scaling batch size inveriant
@@ -514,7 +537,7 @@ class AdversarialRegulariser(GenericFramework):
             # Optimization for the picture
             pic_grad = torch.autograd.grad(
                 full_error_batch, reconstruction)
-            pic_grad_cpu = pic_grad[0].detach().cpu().numpy()
+            pic_grad_cpu = pic_grad[0].detach().cpu().numpy() #grad of full error
             del reconstruction, data_term, data_mismatch, data_error, pic_grad, mu, ray, full_error_batch
             #torch.cuda.empty_cache()
             return pic_grad_cpu, full_error

@@ -1,7 +1,7 @@
 from ClassFiles.Framework import AdversarialRegulariser
-from ClassFiles.networks import ConvNetClassifier, ConvNetClassifier_nostride, Spectral_withResize, Spectral_FromTrainedConv
-from ClassFiles.data_pips import BSDS, LUNA, ellipses
-from ClassFiles.forward_models import Denoising,CT
+from ClassFiles.networks import ConvNetClassifier_nostride, Spectral_withResize, Spectral_FromTrainedConv
+from ClassFiles.data_pips import BSDS, ellipses
+from ClassFiles.forward_models import Denoising
 import numpy as np
 import time 
 import random
@@ -18,7 +18,6 @@ def fix_seed(seed=0):
 
 fix_seed()
 DATA_PATH = "/home/maniraman/Desktop/Ranjani/thesis/BSR/BSDS500/data/images/" #'/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/data/BSR/BSDS500/data/images/', '../Data/data/images/'
-#DATA_PATH = '/home/maniraman/Desktop/Ranjani/thesis/LUNA/manifest-1674842977695/LIDC-IDRI/' #'../Data/luna/'
 SAVES_PATH = '/home/maniraman/Desktop/Ranjani/thesis/git/Adversarial-Regularization/' #'/media/sriranjani/Data/masterThesis/git/Adversarial-Regularization/' #'../Saves/'
 
 
@@ -44,28 +43,35 @@ class Experiment1(AdversarialRegulariser):
         return self.update_pic(10, 1, y, fbp, 0)
 
     def get_Data_pip(self, data_path, image_size = None):
-        #image_size = (256,256) #change for different dimension during evaluation
-        return ellipses(data_path, image_size=image_size)
+        image_size = (240, 240) #change for different dimension during evaluation
+        return BSDS(data_path, image_size=image_size)
 
     def get_model(self, size):
         return  Denoising(size=size)
 
 tm = time.time()
 
-experiment = Experiment1(DATA_PATH, SAVES_PATH, exp_name="Noise0.05_Spectral_withResize",
-                        model_input_size=(128,128), #image size during training
-                        conv_to_spectral=False) #False while training CNN or FNO 
+train_model = False #set false when loading weights for testing
+
+experiment = Experiment1(DATA_PATH, SAVES_PATH, exp_name="Noise0.05_Spectral_withResize_200",
+                        model_input_size=(200,200), #image size during training
+                        conv_to_spectral=False,  #False while training CNN or FNO 
+                        train_model=train_model) 
 
 experiment.noise_level = 0.05
-
 experiment.data_clipping = 'Clipped_data'
 lmb = experiment.find_good_lambda(32)
 experiment.mu_default = lmb
-"""for k in range(7):
-    experiment.train(100)
-experiment.Network_Optimization_writer.close()
-experiment.Reconstruction_Quality_writer.close()"""
-experiment.log_optimization(batch_size=16, steps=200, step_s=0.01,mu=lmb, logOpti=False)
+
+if train_model:
+    for k in range(7):
+        experiment.train(100)
+    experiment.Network_Optimization_writer.close()
+    experiment.Reconstruction_Quality_writer.close()
+    experiment.Network_Optimization_csv.close()
+    experiment.Reconstruction_Quality_csv.close()
+
+experiment.log_optimization(batch_size=8, steps=200, step_s=0.01,mu=lmb, logOpti=False) #logOpti=False will resize BSDS image
 
 duration = (time.time()-tm)/60
 print("Time taken for experiment " + str(duration))

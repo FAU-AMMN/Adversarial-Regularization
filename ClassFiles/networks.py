@@ -11,113 +11,8 @@ sys.path.append(os.path.abspath('../FourierImaging/'))
 
 import fourierimaging as fi
 
-from fourierimaging.modules import TrigonometricResize_2d, conv_to_spectral, SpectralConv2d
+from fourierimaging.modules import TrigonometricResize_2d, conv_to_spectral
 
-class Conv2dSame(nn.Conv2d):
-    #strided convolution
-    def calc_same_pad(self, i: int, k: int, s: int, d: int) -> int:
-        return max((math.ceil(i / s) - 1) * s + (k - 1) * d + 1 - i, 0)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        ih, iw = x.size()[-2:]
-
-        pad_h = self.calc_same_pad(i=ih, k=self.kernel_size[0], s=self.stride[0], d=self.dilation[0])
-        pad_w = self.calc_same_pad(i=iw, k=self.kernel_size[1], s=self.stride[1], d=self.dilation[1])
-
-        if pad_h > 0 or pad_w > 0:
-            x = F.pad(
-                x, [pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2], mode='circular'
-            )
-        return F.conv2d(
-            x,
-            self.weight,
-            self.bias,
-            self.stride,
-            self.padding,
-            self.dilation,
-            self.groups,
-        )
-
-class resblock(nn.Module):
-
-    def __init__(self, in_channel, out_channel):
-        super(resblock, self).__init__()
-        self.conv1 = nn.Conv2d(in_channel, out_channel,kernel_size=5,padding= "same")
-        self.relu1 = nn.LeakyReLU(negative_slope=0.2)
-        self.conv2 = nn.Conv2d(out_channel, out_channel,kernel_size=5,padding= "same")
-        self.relu2 = nn.LeakyReLU(negative_slope=0.2)
-
-    def forward(self, x):
-        residual = x
-        out = self.conv1(x)
-        out = self.relu1(out)
-        out = self.conv2(x)
-        out += residual
-        out = self.relu2(out)
-
-        return out
-
-class ConvNetClassifier(nn.Module):
-
-    def __init__(self, size, colors):
-        
-        super(ConvNetClassifier, self).__init__()
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.size = size
-        self.colors = colors
-        self.conv1 = nn.Conv2d(self.colors,16,5,padding="same", padding_mode='circular')
-        self.conv2 = nn.Conv2d(16,32,5,padding="same", padding_mode='circular')
-        self.conv3 = Conv2dSame(32,32,5,stride=2)
-
-        self.conv4 = Conv2dSame(32,64,5, stride=2)
-        self.conv5 = Conv2dSame(64,64,5, stride=2)
-        self.conv6 = Conv2dSame(64,128,5, stride=2)
-
-        self.adapAvgPool = nn.AdaptiveAvgPool2d((8,8))
-
-        # reshape for classification - assumes image size is multiple of 32
-        finishing_size = int(128 * 128/(16*16))
-        self.dimensionality = finishing_size * 128
-        
-        self.fc1 = nn.Linear(self.dimensionality, 256)
-        self.fc2 = nn.Linear(256, 1)
-
-        self.init_weights()
-
-    def init_weights(self):
-        for m in self.modules():
-            print(m)
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                nn.init.xavier_uniform(m.weight)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-        
-
-    def forward(self, x):
-        
-        x = x.type(torch.FloatTensor)
-        x = x.to(self.device)
-        x = self.conv1(x)
-        x = nn.LeakyReLU(negative_slope=0.2)(x)
-        x = self.conv2(x)
-        x = nn.LeakyReLU(negative_slope=0.2)(x)
-        x = self.conv3(x)
-        x = nn.LeakyReLU(negative_slope=0.2)(x)
-        x = self.conv4(x)
-        x = nn.LeakyReLU(negative_slope=0.2)(x)
-        x = self.conv5(x)
-        x = nn.LeakyReLU(negative_slope=0.2)(x)
-        x = self.conv6(x)
-        x = nn.LeakyReLU(negative_slope=0.2)(x)
-
-        x = self.adapAvgPool(x)
-        x = torch.reshape(x, (-1,self.dimensionality))    
-        x = self.fc1(x)
-        x = nn.LeakyReLU(negative_slope=0.3)(x)
-        output = self.fc2(x)
-
-        return output 
-    
 
 class ConvNetClassifier_nostride(nn.Module):
 
@@ -144,8 +39,8 @@ class ConvNetClassifier_nostride(nn.Module):
         self.adapAvgPool = nn.AdaptiveAvgPool2d((8,8))
 
         # reshape for classification - assumes image size is multiple of 32
-        finishing_size = int(128 * 128/(16*16))
-        self.dimensionality = finishing_size * 128
+        finishing_size = int(128 * 128/(16*16)) #64x64
+        self.dimensionality = finishing_size * 128 #8192
         
         self.fc1 = nn.Linear(self.dimensionality, 256)
         self.fc2 = nn.Linear(256, 1)
@@ -162,7 +57,7 @@ class ConvNetClassifier_nostride(nn.Module):
         
 
     def forward(self, x):
-        
+                
         x = x.type(torch.FloatTensor)
         x = x.to(self.device)
         x = self.conv1(x)
@@ -200,22 +95,24 @@ class ConvNetClassifier_nostride(nn.Module):
         return output 
     
 class Spectral_withResize(ConvNetClassifier_nostride):
-
+    """
+    FNO layer
+    """
     def __init__(self, size, colors):
         super(Spectral_withResize,self).__init__(size, colors)
         
-        self.conv1 = conv_to_spectral(self.conv1, size)
-        self.conv2 = conv_to_spectral(self.conv2, size)
-        self.conv3 = conv_to_spectral(self.conv3, size)
+        self.conv1 = conv_to_spectral(self.conv1, size, in_shape = size)
+        self.conv2 = conv_to_spectral(self.conv2, size, in_shape = size)
+        self.conv3 = conv_to_spectral(self.conv3, size, in_shape = size)
         #resize
         size = (int(size[0]/2),int(size[1]/2))
-        self.conv4 = conv_to_spectral(self.conv4, size)
+        self.conv4 = conv_to_spectral(self.conv4, size, in_shape = size)
         #resize
         size = (int(size[0]/2),int(size[1]/2))
-        self.conv5 = conv_to_spectral(self.conv5, size)
+        self.conv5 = conv_to_spectral(self.conv5, size, in_shape = size)
         #resize
         size = (int(size[0]/2),int(size[1]/2))
-        self.conv6 = conv_to_spectral(self.conv6, size)
+        self.conv6 = conv_to_spectral(self.conv6, size, in_shape = size)
         #resize
         
 class Spectral_FromTrainedConv(ConvNetClassifier_nostride):
@@ -225,17 +122,18 @@ class Spectral_FromTrainedConv(ConvNetClassifier_nostride):
     def __init__(self, size, colors):
         super(Spectral_FromTrainedConv,self).__init__(size, colors)
     
-    def convert_to_spectral(self):
-        self.conv1 = conv_to_spectral(self.conv1, self.size )
-        self.conv2 = conv_to_spectral(self.conv2, self.size )
-        self.conv3 = conv_to_spectral(self.conv3, self.size )
+    def convert_to_spectral(self, input_size): 
+        input_size = self.size #if inputSize != self.size, then FNO performs like CNN
+        self.conv1 = conv_to_spectral(self.conv1, input_size)#, in_shape = input_size )
+        self.conv2 = conv_to_spectral(self.conv2, input_size)
+        self.conv3 = conv_to_spectral(self.conv3, input_size)
         #resize
-        size = (int(self.size [0]/2),int(self.size [1]/2))
-        self.conv4 = conv_to_spectral(self.conv4, size )
-        #resize
-        size = (int(size[0]/2),int(size[1]/2))
-        self.conv5 = conv_to_spectral(self.conv5, size )
+        size = (int(input_size [0]/2),int(input_size [1]/2))
+        self.conv4 = conv_to_spectral(self.conv4, size)#, in_shape = size )
         #resize
         size = (int(size[0]/2),int(size[1]/2))
-        self.conv6 = conv_to_spectral(self.conv6, size )
+        self.conv5 = conv_to_spectral(self.conv5, size)
+        #resize
+        size = (int(size[0]/2),int(size[1]/2))
+        self.conv6 = conv_to_spectral(self.conv6, size)
         #resize     

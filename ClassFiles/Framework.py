@@ -546,12 +546,11 @@ class AdversarialRegulariser(GenericFramework):
             cut_reco = torch.clamp(reconstruction, 0.0, 1.0)
             ground_truth = torch.tensor(ground_truth, requires_grad=False, device=self.device)
             quality = ut.quality(ground_truth, reconstruction)
-            #quality = torch.mean(torch.sqrt(torch.sum(torch.square(ground_truth - reconstruction),axis=(1, 2, 3))))
             return data_error, was_output, cut_reco, quality
         
 
     def find_good_lambda(self, sample=64):
-        # Method to estimate a good value of the regularisation paramete.
+        # Method to estimate a good value of the regularisation parameter.
         # This is done via estimation of 2 ||K^t (Kx-y)||_2 where x is the ground truth
         y, x_true, fbp = self.generate_training_data(sample)
         gradient_truth, fullError = self.calculate_pic_grad(reconstruction=x_true, data_term=y, mu=0)

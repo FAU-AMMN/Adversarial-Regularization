@@ -27,7 +27,7 @@ class data_pip(ABC):
     def load_data(self, training_data=True):
         pass
 
-# returns 128x128 image from the BSDS dataset.
+
 class BSDS(data_pip):
     name = 'BSDS'
     colors = 3
@@ -80,7 +80,7 @@ class BSDS(data_pip):
         #image = pic[ul[0]:lr[0], ul[1]:lr[1],:]
         return pic
 
-# returns 128x128 image of randomly sampled ellipses
+
 class ellipses(data_pip):
     name = 'ellipses'
     colors = 1

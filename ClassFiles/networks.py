@@ -38,7 +38,6 @@ class ConvNetClassifier_nostride(nn.Module):
 
         self.adapAvgPool = nn.AdaptiveAvgPool2d((8,8))
 
-        # reshape for classification - assumes image size is multiple of 32
         finishing_size = int(128 * 128/(16*16)) #64x64
         self.dimensionality = finishing_size * 128 #8192
         
@@ -124,12 +123,12 @@ class Spectral_FromTrainedConv(ConvNetClassifier_nostride):
     
     def convert_to_spectral(self, input_size): 
         input_size = self.size #if inputSize != self.size, then FNO performs like CNN
-        self.conv1 = conv_to_spectral(self.conv1, input_size)#, in_shape = input_size )
+        self.conv1 = conv_to_spectral(self.conv1, input_size)
         self.conv2 = conv_to_spectral(self.conv2, input_size)
         self.conv3 = conv_to_spectral(self.conv3, input_size)
         #resize
         size = (int(input_size [0]/2),int(input_size [1]/2))
-        self.conv4 = conv_to_spectral(self.conv4, size)#, in_shape = size )
+        self.conv4 = conv_to_spectral(self.conv4, size)
         #resize
         size = (int(size[0]/2),int(size[1]/2))
         self.conv5 = conv_to_spectral(self.conv5, size)

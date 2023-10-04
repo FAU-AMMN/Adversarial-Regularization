@@ -1,9 +1,7 @@
 import os
-#import tensorflow as tf
 import torch 
 import numpy as np
 import fnmatch
-#from skimage.metrics import structural_similarity as ssim_np
 from torchmetrics import StructuralSimilarityIndexMeasure
 
 def quality(truth, recon):
@@ -17,32 +15,13 @@ def quality(truth, recon):
     ssim = StructuralSimilarityIndexMeasure().to(device)
     ssi = ssim(recon, truth)
     
-    """for k in range(amount_images):
-        ssi = ssi + ssim(truth[k,...,0], cut_image(recon[k,...,0]))"""
-    #ssi = ssi/amount_images
     return [l2, psnr, ssi]
-    """# for fixed images truth and reconstruction, evaluates average l2 value and ssim score
-    truth = truth.cpu().detach().numpy()
-    recon = recon.cpu().detach().numpy()
-    recon = cut_image(recon)
-    l2 = np.average(np.sqrt(np.sum(np.square(truth - recon), axis = (1,2,3))))
-    psnr = - 10 * np.log10(np.average(np.square(truth - recon)))
-    amount_images = truth.shape[0]
-    ssi = 0
-    for k in range(amount_images):
-        ssi = ssi + ssim(truth[k,...,0], cut_image(recon[k,...,0]))
-    ssi = ssi/amount_images
-    return [l2, psnr, ssi]"""
 
 def cut_image(pic):
     # hard cut image to [0,1]
     pic = torch.maximum(pic, torch.zeros(pic.shape).cuda())
     pic = torch.minimum(pic, torch.ones(pic.shape).cuda())
     return pic
-    # hard cut image to [0,1]
-    """pic = np.maximum(pic, 0.0)
-    pic = np.minimum(pic, 1.0)
-    return pic"""
 
 def normalize_image(pic):
     # normalizes image to average 0 and variance 1

@@ -17,18 +17,16 @@ def fix_seed(seed=0):
     torch.backends.cudnn.deterministic = True
 
 fix_seed()
-DATA_PATH = "/home/maniraman/Desktop/Ranjani/thesis/BSR/BSDS500/data/images/" #'/media/sriranjani/Data/masterThesis/DeepAdverserialRegulariser_torch/data/BSR/BSDS500/data/images/', '../Data/data/images/'
-SAVES_PATH = '/home/maniraman/Desktop/Ranjani/thesis/git/Adversarial-Regularization/' #'/media/sriranjani/Data/masterThesis/git/Adversarial-Regularization/' #'../Saves/'
+DATA_PATH = '../Data/data/images/'
+SAVES_PATH = '../Saves/'
 
 
 #Saves_clipped_Noise0.01
 class Experiment1(AdversarialRegulariser):
     experiment_name = 'MediumNoise'
-    data_clipping = "Unclipped_data"
-    noise_level = 0.01
+    data_clipping = "Clipped_data"
+    noise_level = 0.05 # change noise level 
 
-    # relation between L2 error and regulariser
-    # 0 corresponds to pure L2 loss, infty to pure adversarial loss
     mu_default = .3
     
     learning_rate = 0.0001
@@ -58,8 +56,6 @@ experiment = Experiment1(DATA_PATH, SAVES_PATH, exp_name="Noise0.05_Spectral_wit
                         conv_to_spectral=False,  #False while training CNN or FNO 
                         train_model=train_model) 
 
-experiment.noise_level = 0.05
-experiment.data_clipping = 'Clipped_data'
 lmb = experiment.find_good_lambda(32)
 experiment.mu_default = lmb
 
